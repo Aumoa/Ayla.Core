@@ -36,7 +36,7 @@ namespace Ayla.Core
             var match = RegexPatterns.ExpressionTypeCode.Match(ss, StringDistance(ss, expression), expression.Length);
             if (match.Success == false)
             {
-                throw new FormatException("Invalid expression format: missing 'TypeCode'");
+                throw new FormatException("Invalid expression format: The first JSON member of the Expression item must start with TypeName.");
             }
 
             switch (match.Groups[1].Value)
