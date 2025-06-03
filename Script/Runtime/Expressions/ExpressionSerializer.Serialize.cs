@@ -94,7 +94,7 @@ namespace Ayla.Core
                 context.AddIndentNewLine(() =>
                 {
                     return string.Join(",\n",
-                        context.IndentedJson("TypeCode", nameof(NewArrayExpression).Quotes()),
+                        context.IndentedJson("TypeName", typeof(NewArrayExpression).FullName.Quotes()),
                         context.IndentedJson("Type", value.Type.FullName.Quotes()),
                         context.IndentedJson("Expressions", Serialize(value.Expressions, context))
                         );
@@ -113,7 +113,7 @@ namespace Ayla.Core
                 context.AddIndentNewLine(() =>
                 {
                     return string.Join(",\n",
-                        context.IndentedJson("TypeCode", nameof(ConstantExpression).Quotes()),
+                        context.IndentedJson("TypeName", typeof(ConstantExpression).FullName.Quotes()),
                         context.IndentedJson("Value", value.Value?.ToString().Quotes() ?? "null"),
                         context.IndentedJson("Type", value.Type.FullName.Quotes())
                         );
@@ -127,7 +127,7 @@ namespace Ayla.Core
                 context.AddIndentNewLine(() =>
                 {
                     return string.Join(",\n",
-                        context.IndentedJson("TypeCode", nameof(MethodCallExpression).Quotes()),
+                        context.IndentedJson("TypeName", typeof(MethodCallExpression).FullName.Quotes()),
                         context.IndentedJson("Object", Serialize(value.Object, context)),
                         context.IndentedJson("Method", Serialize(value.Method, context)),
                         context.IndentedJson("Arguments", Serialize(value.Arguments, context))
@@ -142,7 +142,7 @@ namespace Ayla.Core
                 context.AddIndentNewLine(() =>
                 {
                     return string.Join(",\n",
-                        context.IndentedJson("TypeCode", nameof(LambdaExpression).Quotes()),
+                        context.IndentedJson("TypeName", typeof(LambdaExpression).FullName.Quotes()),
                         context.IndentedJson("Parameters", Serialize(value.Parameters, context)),
                         context.IndentedJson("Body", Serialize(value.Body, context))
                         );
@@ -156,7 +156,7 @@ namespace Ayla.Core
                 context.AddIndentNewLine(() =>
                 {
                     return string.Join(",\n",
-                        context.IndentedJson("TypeCode", nameof(BinaryExpression).Quotes()) +
+                        context.IndentedJson("TypeName", typeof(BinaryExpression).FullName.Quotes()) +
                         context.IndentedJson("NodeType", value.NodeType),
                         context.IndentedJson("Left", Serialize(value.Left, context)),
                         context.IndentedJson("Right", Serialize(value.Right, context))
