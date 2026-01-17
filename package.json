@@ -9,6 +9,6 @@
   "unity": "6000.2.10f1",
   "description": "Core package for Ayla plugins.",
   "license": "MIT",
-  "dependenceis": {
+  "dependencies": {
   }
 }
