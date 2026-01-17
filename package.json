@@ -1,0 +1,14 @@
+{
+  "name": "com.ayla.core",
+  "displayName": "Ayla.Core",
+  "author": {
+    "name": "liberty",
+    "url": "https://github.com/Aumoa"
+  },
+  "version": "1.0.0",
+  "unity": "6000.2.10f1",
+  "description": "Core package for Ayla plugins.",
+  "license": "MIT",
+  "dependenceis": {
+  }
+}
