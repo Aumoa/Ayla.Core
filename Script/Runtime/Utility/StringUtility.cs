@@ -2,7 +2,7 @@
 
 using System;
 
-namespace Ayla.Core
+namespace Ayla
 {
     /// <summary>
     /// Provides commonly used utilities for text represented as a <see cref="string"/> class.

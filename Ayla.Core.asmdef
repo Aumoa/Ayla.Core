@@ -1,6 +1,6 @@
 {
     "name": "Ayla.Core",
-    "rootNamespace": "Ayla.Core",
+    "rootNamespace": "Ayla",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

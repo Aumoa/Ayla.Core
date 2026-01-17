@@ -6,7 +6,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using UnityEngine.Pool;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static class ExpressionUtility
     {

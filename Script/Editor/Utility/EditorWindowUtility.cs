@@ -8,7 +8,7 @@ using UnityEditor.Callbacks;
 using UnityEngine.Pool;
 using Object = UnityEngine.Object;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static class EditorWindowUtility
     {

@@ -2,7 +2,7 @@
 using UnityEditorInternal;
 using UnityEngine;
 
-namespace Ayla.Core
+namespace Ayla
 {
     [CustomPropertyDrawer(typeof(OrderedDictionary<,>))]
     public class OrderedDictionaryPropertyDrawer : PropertyDrawer

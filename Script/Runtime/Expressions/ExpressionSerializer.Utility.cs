@@ -1,4 +1,4 @@
-﻿namespace Ayla.Core
+﻿namespace Ayla
 {
     public static partial class ExpressionSerializer
     {

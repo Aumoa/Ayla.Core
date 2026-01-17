@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace Ayla.Core
+namespace Ayla
 {
     [Serializable]
     public struct Vector2D : IFormattable, IEquatable<Vector2D>

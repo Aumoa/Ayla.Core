@@ -5,7 +5,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static class RectGeometryUtility
     {

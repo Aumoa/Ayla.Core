@@ -1,7 +1,7 @@
 using System;
 using UnityEngine.Pool;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static class ArrayUtility
     {

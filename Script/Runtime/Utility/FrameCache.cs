@@ -3,7 +3,7 @@
 using System;
 using UnityEngine;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public readonly struct FrameCache<T> : IEquatable<FrameCache<T>>
     {

@@ -2,7 +2,7 @@
 
 using UnityEngine;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static class ColorUtility
     {

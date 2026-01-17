@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using UnityEngine.Pool;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static partial class ExpressionSerializer
     {

@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
-namespace Ayla.Core
+namespace Ayla
 {
     public static partial class ExpressionSerializer
     {
