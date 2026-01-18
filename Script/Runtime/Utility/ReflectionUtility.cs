@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using UnityEngine.Pool;
+using Debug = UnityEngine.Debug;
 
 namespace Ayla
 {
@@ -16,6 +18,8 @@ namespace Ayla
 
             static Nested()
             {
+                var timer = Stopwatch.StartNew();
+
                 using var scope1 = ListPool<Type>.Get(out var types);
                 foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
                 {
@@ -26,6 +30,10 @@ namespace Ayla
                 }
 
                 s_All = types.ToArray();
+
+                timer.Stop();
+
+                Debug.LogFormat("Collect all types for ReflectionUtility tooks {0} ms", timer.ElapsedMilliseconds);
             }
         }
 
@@ -49,6 +57,46 @@ namespace Ayla
         /// </remarks>
         public static bool IsAssignableTo(this Type @this, [NotNullWhen(true)] Type? targetType)
             => targetType?.IsAssignableFrom(@this) ?? false;
+
+        public static bool IsImplements(this Type @this, [NotNullWhen(true)] Type? targetType)
+        {
+            if (targetType == null)
+            {
+                return false;
+            }
+
+            if (targetType.IsInterface)
+            {
+                // Check if @this implements the interface (including generic interfaces)
+                foreach (var i in @this.GetInterfaces())
+                {
+                    if (i == targetType || (targetType.IsGenericTypeDefinition && i.IsGenericType && i.GetGenericTypeDefinition() == targetType))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            else if (targetType.IsGenericTypeDefinition)
+            {
+                // Check if @this or any base type is a constructed generic of targetType
+                for (var t = @this; t != null && t != typeof(object); t = t.BaseType)
+                {
+                    if (t.IsGenericType && t.GetGenericTypeDefinition() == targetType)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            else
+            {
+                // Fallback to assignable check
+                return @this.IsAssignableTo(targetType);
+            }
+        }
 
         /// <summary>
         /// Gets all types from the current AppDomain that match the specified predicate.
