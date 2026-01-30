@@ -15,12 +15,14 @@ namespace Ayla
         private readonly struct ColumnDefinition
         {
             public readonly string Name;
+            public readonly string TypeName;
             public readonly int Width;
 
-            public ColumnDefinition(string name)
+            public ColumnDefinition(string name, string typeName)
             {
                 Name = name;
-                Width = 50;
+                TypeName = typeName;
+                Width = 100;
             }
         }
 
@@ -64,15 +66,26 @@ namespace Ayla
                 for (int i = 0; i < m_KeyColumns.Length; ++i)
                 {
                     ref var c = ref m_KeyColumns[i];
-                    GUI.Label(headerLayoutAdv.FillLeft(c.Width), c.Name, EditorStyles.boldLabel);
+                    var r = headerLayoutAdv.FillLeft(c.Width);
+                    DrawColumnName(ref c, r);
                     headerLayoutAdv = headerLayoutAdv.MarginLeft(c.Width);
                 }
                 headerLayoutAdv = headerLayoutAdv.MarginLeft(VerticalBorder.ShadowPixels);
                 for (int i = 0; i < m_ValueColumns.Length; ++i)
                 {
                     ref var c = ref m_ValueColumns[i];
-                    GUI.Label(headerLayoutAdv.FillLeft(c.Width), c.Name, EditorStyles.boldLabel);
+                    var r = headerLayoutAdv.FillLeft(c.Width);
+                    DrawColumnName(ref c, r);
                     headerLayoutAdv = headerLayoutAdv.MarginLeft(c.Width);
+                }
+
+                static void DrawColumnName(ref ColumnDefinition c, Rect r)
+                {
+                    var content = EditorGUIHelper.TempContent(c.Name);
+                    GUI.Label(r, content, EditorStyles.boldLabel);
+                    var size = EditorStyles.boldLabel.CalcSize(content);
+                    r = r.MarginLeft(size.x + EditorGUIUtility.standardVerticalSpacing);
+                    GUI.Label(r, $"[{c.TypeName}]");
                 }
             }
 
@@ -146,7 +159,7 @@ namespace Ayla
                 using var scope1 = ListPool<ColumnDefinition>.Get(out var columns);
                 VisitChildren(copy, p =>
                 {
-                    columns.Add(new ColumnDefinition(p.name));
+                    columns.Add(new ColumnDefinition(p.name, p.type));
                 });
                 if (columns.Count > 1)
                 {
@@ -156,7 +169,7 @@ namespace Ayla
                 columns.Clear();
                 VisitChildren(copy, p =>
                 {
-                    columns.Add(new ColumnDefinition(p.name));
+                    columns.Add(new ColumnDefinition(p.name, p.type));
                 });
                 if (columns.Count > 1)
                 {
@@ -222,7 +235,6 @@ namespace Ayla
 
         static OrderedDictionaryEditor()
         {
-
             var assemblyName = new AssemblyName("DynamicDataTableAssembly");
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             s_CDOModuleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
