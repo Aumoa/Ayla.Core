@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using UnityEngine;
 
@@ -84,6 +85,54 @@ namespace Ayla
         public static AreaScopeBuilder Area(Rect area)
         {
             return new AreaScopeBuilder(area);
+        }
+
+        public readonly struct VerticalScopeBuilder : IDisposable
+        {
+            private readonly bool m_Valid;
+
+            public VerticalScopeBuilder(bool valid)
+            {
+                m_Valid = valid;
+            }
+
+            public void Dispose()
+            {
+                if (m_Valid)
+                {
+                    GUILayout.EndVertical();
+                }
+            }
+        }
+
+        public static VerticalScopeBuilder Vertical()
+        {
+            GUILayout.BeginVertical();
+            return new VerticalScopeBuilder(true);
+        }
+
+        public readonly struct HorizontalScopeBuilder : IDisposable
+        {
+            private readonly bool m_Valid;
+
+            public HorizontalScopeBuilder(bool valid)
+            {
+                m_Valid = valid;
+            }
+
+            public void Dispose()
+            {
+                if (m_Valid)
+                {
+                    GUILayout.EndHorizontal();
+                }
+            }
+        }
+
+        public static HorizontalScopeBuilder Horizontal()
+        {
+            GUILayout.BeginHorizontal();
+            return new HorizontalScopeBuilder(true);
         }
     }
 }
