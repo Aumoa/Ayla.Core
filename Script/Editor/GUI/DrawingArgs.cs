@@ -19,6 +19,10 @@ namespace Ayla
             ClippingRect = clippingRect;
         }
 
+        public DrawingArgs(Rect drawingRect) : this(drawingRect, drawingRect)
+        {
+        }
+
         public bool Contains(Vector2 position)
         {
             return DrawingRect.Clip(ClippingRect).Contains(position);
