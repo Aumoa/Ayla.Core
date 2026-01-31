@@ -21,10 +21,12 @@ namespace Ayla
 
             EditorGUI.PrefixLabel(labelRect, label);
 
-            if (GUI.Button(fieldRect, OrderedDictionaryText.kOpenEditor))
+            if (GUI.Button(fieldRect, OrderedDictionaryText.OpenEditor))
             {
                 var editorWindow = ScriptableObject.CreateInstance<OrderedDictionaryEditor>();
-                editorWindow.SelectProperty(property);
+                var targetObjects = property.serializedObject.targetObjects;
+                var serializedObject = new SerializedObject(targetObjects);
+                editorWindow.SelectProperty(serializedObject.FindProperty(property.propertyPath));
                 editorWindow.Show();
             }
         }

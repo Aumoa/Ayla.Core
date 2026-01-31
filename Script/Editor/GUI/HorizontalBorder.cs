@@ -10,6 +10,7 @@ namespace Ayla
         public const float Height = 1;
         public const float ShadowPixels = 7;
         private const float ShadowPow = 2f;
+        private const float kInvShadowPixels = 1.0f / ShadowPixels;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Draw(DrawingArgs drawingArgs, Color color)
@@ -19,7 +20,7 @@ namespace Ayla
                 var a = color.a;
                 for (int i = 0; i < ShadowPixels; ++i)
                 {
-                    float f = i / ShadowPixels;
+                    float f = i * kInvShadowPixels;
                     color = color.WithAlpha(a * Mathf.Pow(1.0f - f, ShadowPow));
                     var rect = drawingArgs.DrawingRect.FillTop(Height);
                     EditorGUI.DrawRect(rect, color);

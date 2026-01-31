@@ -58,5 +58,41 @@ namespace Ayla
         }
 
         public static HorizontalScopeBuilder Horizontal() => Horizontal(out _);
+
+        public readonly struct LabelWidthScopeBuilder : IDisposable
+        {
+            private readonly float m_Width;
+
+            public LabelWidthScopeBuilder(float newWidth)
+            {
+                m_Width = EditorGUIUtility.labelWidth;
+                EditorGUIUtility.labelWidth = newWidth;
+            }
+
+            public void Dispose()
+            {
+                EditorGUIUtility.labelWidth = m_Width;
+            }
+        }
+
+        public static LabelWidthScopeBuilder LabelWidth(float newWidth) => new(newWidth);
+
+        public readonly struct WideModeScopeBuilder : IDisposable
+        {
+            private readonly bool m_WideMode;
+
+            public WideModeScopeBuilder(bool wideMode)
+            {
+                m_WideMode = EditorGUIUtility.wideMode;
+                EditorGUIUtility.wideMode = wideMode;
+            }
+
+            public void Dispose()
+            {
+                EditorGUIUtility.wideMode = m_WideMode;
+            }
+        }
+
+        public static WideModeScopeBuilder WideMode(bool wideMode) => new(wideMode);
     }
 }
