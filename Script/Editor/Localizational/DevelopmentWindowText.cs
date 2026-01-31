@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Ayla
 {
-    internal class DevelopmentWindowText
+    internal static class DevelopmentWindowText
     {
         private static SystemLanguage s_Language = SystemLanguage.English;
 

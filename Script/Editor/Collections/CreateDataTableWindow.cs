@@ -29,7 +29,7 @@ namespace Ayla
                 throw new InvalidOperationException();
             }
 
-            titleContent = new GUIContent("Create DataTable");
+            titleContent = new GUIContent(DataTableText.CreateTitle);
 
             if (s_DataTableTypes == null)
             {
@@ -49,14 +49,14 @@ namespace Ayla
         {
             if (s_DataTableTypes.Length == 0)
             {
-                EditorGUILayout.LabelField("No DataTable subclasses found. Please define a subclass of DataTable<TKey, TValue>.");
+                EditorGUILayout.LabelField(DataTableText.SuitableNotFoundMessage);
                 return;
             }
 
-            m_SelectedTypeIndex = EditorGUILayout.Popup("Table Type", m_SelectedTypeIndex, s_DataTableTypeNames);
-            m_AssetName = EditorGUILayout.TextField("Asset Name", m_AssetName);
+            m_SelectedTypeIndex = EditorGUILayout.Popup(DataTableText.TableType, m_SelectedTypeIndex, s_DataTableTypeNames);
+            m_AssetName = EditorGUILayout.TextField(DataTableText.AssetName, m_AssetName);
             EditorGUILayout.Space();
-            if (GUILayout.Button("Create"))
+            if (GUILayout.Button(DataTableText.Create))
             {
                 string path = AssetDatabase.GenerateUniqueAssetPath(System.IO.Path.Combine(m_CreateAt, m_AssetName));
                 var asset = (DataTable)CreateInstance(s_DataTableTypes[m_SelectedTypeIndex]);
