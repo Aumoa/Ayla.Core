@@ -54,5 +54,12 @@ namespace Ayla
             SystemLanguage.Japanese => "システム",
             _ => "System"
         };
+
+        public static string UnityToolsTitle => s_Language switch
+        {
+            SystemLanguage.Korean => "유니티 도구",
+            SystemLanguage.Japanese => "Unityツール",
+            _ => "Unity Tools"
+        };
     }
 }

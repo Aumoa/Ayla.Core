@@ -28,6 +28,8 @@ namespace Ayla
             [SystemToolsText.ClearProgressBar] = EditorUtility.ClearProgressBar
         };
 
+        public override string Title => SystemToolsText.UnityToolsTitle;
+
         protected internal override void OnGUI(DrawingArgs drawingArgs)
         {
             bool firstPass = true;
