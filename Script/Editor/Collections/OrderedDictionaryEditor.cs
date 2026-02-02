@@ -9,509 +9,512 @@ using UnityEngine;
 using UnityEngine.Pool;
 using Object = UnityEngine.Object;
 
-namespace Ayla
+namespace Ayla;
+
+public class OrderedDictionaryEditor : EditorWindow
 {
-    public class OrderedDictionaryEditor : EditorWindow
+    private const int kMinimumWidth = 50;
+    private const int kMaximumWidth = 500;
+    private const int kDefaultWidth = 100;
+
+    private readonly struct ColumnDefinition
     {
-        private const int kMinimumWidth = 50;
-        private const int kMaximumWidth = 500;
-        private const int kDefaultWidth = 100;
+        public readonly string Name;
+        public readonly string TypeName;
+        public readonly SerializedProperty Property;
 
-        private readonly struct ColumnDefinition
+        private readonly string m_PropertyUniqueKey;
+
+        public ColumnDefinition(string name, string typeName, string propertyUniqueKey, SerializedProperty property)
         {
-            public readonly string Name;
-            public readonly string TypeName;
-            public readonly SerializedProperty Property;
-
-            private readonly string m_PropertyUniqueKey;
-
-            public ColumnDefinition(string name, string typeName, string propertyUniqueKey, SerializedProperty property)
-            {
-                Name = name;
-                TypeName = typeName;
-                Property = property;
-                m_PropertyUniqueKey = propertyUniqueKey;
-            }
-
-            public int Width
-            {
-                get => EditorPrefs.GetInt(m_PropertyUniqueKey, kDefaultWidth);
-                set => EditorPrefs.SetInt(m_PropertyUniqueKey, Math.Clamp(value, kMinimumWidth, kMaximumWidth));
-            }
+            Name = name;
+            TypeName = typeName;
+            Property = property;
+            m_PropertyUniqueKey = propertyUniqueKey;
         }
 
-        private sealed class DragHandle : IDisposable
+        public int Width
         {
-            private readonly int m_Button;
-            private readonly Vector2 m_Initial;
-            private Vector2 m_MousePosition;
+            get => EditorPrefs.GetInt(m_PropertyUniqueKey, kDefaultWidth);
+            set => EditorPrefs.SetInt(m_PropertyUniqueKey, Math.Clamp(value, kMinimumWidth, kMaximumWidth));
+        }
+    }
 
-            public DragHandle(Event current, int button)
+    private sealed class DragHandle : IDisposable
+    {
+        private readonly int m_Button;
+        private readonly Vector2 m_Initial;
+        private Vector2 m_MousePosition;
+
+        public DragHandle(Event current, int button)
+        {
+            m_Button = button;
+            m_Initial = current.mousePosition;
+            m_MousePosition = m_Initial;
+        }
+
+        public void Dispose()
+        {
+            GC.SuppressFinalize(this);
+        }
+
+        public event Action<Vector2, Vector2>? MouseMove;
+
+        public bool Update(Event current)
+        {
+            if (current.button != m_Button)
             {
-                m_Button = button;
-                m_Initial = current.mousePosition;
-                m_MousePosition = m_Initial;
-            }
-
-            public void Dispose()
-            {
-                GC.SuppressFinalize(this);
-            }
-
-            public event Action<Vector2, Vector2> MouseMove;
-
-            public bool Update(Event current)
-            {
-                if (current.button != m_Button)
-                {
-                    return true;
-                }
-
-                switch (current.rawType)
-                {
-                    case EventType.MouseMove or EventType.MouseDrag:
-                        m_MousePosition += current.delta;
-                        MouseMove?.Invoke(m_MousePosition - m_Initial, current.delta);
-                        current.Use();
-                        break;
-                    case EventType.MouseUp:
-                        current.Use();
-                        return false;
-                }
-
                 return true;
             }
+
+            switch (current.rawType)
+            {
+                case EventType.MouseMove or EventType.MouseDrag:
+                    m_MousePosition += current.delta;
+                    MouseMove?.Invoke(m_MousePosition - m_Initial, current.delta);
+                    current.Use();
+                    break;
+                case EventType.MouseUp:
+                    current.Use();
+                    return false;
+            }
+
+            return true;
+        }
+    }
+
+    private const int kButtonWidth = 18;
+    private const int kScrollSize = 14;
+
+    [SerializeField]
+    private Object[] m_TargetObjects = Array.Empty<Object>();
+    [SerializeField]
+    private string m_PropertyPath = "";
+    [SerializeField]
+    private Vector2 m_Scroll;
+
+    private GUIContent? m_DefaultLabelContent;
+    private SerializedProperty? m_Property;
+    private SerializedProperty? m_Rows;
+    private Object? m_ClassDefaultObject;
+    private SerializedProperty? m_ClassDefaultObjectProperty;
+    private SerializedProperty? m_CDOCopySource;
+    private SerializedProperty? m_CDOCopySourceKey;
+
+    private ColumnDefinition[] m_KeyColumns = Array.Empty<ColumnDefinition>();
+    private ColumnDefinition[] m_ValueColumns = Array.Empty<ColumnDefinition>();
+    private event Action? m_UpdateQueue;
+    private readonly HashSet<object> m_KeyCollection = new();
+
+    private GUIContent? m_InsertHereContent;
+    private GUIContent? m_AddLastContent;
+    private GUIContent? m_RemoveContent;
+    private GUIContent? m_MoveUpContent;
+    private GUIContent? m_MoveDownContent;
+
+    private DragHandle? m_DragHandle;
+
+    private void OnEnable()
+    {
+        m_DefaultLabelContent = new GUIContent { text = "O" };
+
+        m_InsertHereContent = new GUIContent
+        {
+            image = EditorGUIUtility.IconContent("d_addmore").image,
+            tooltip = OrderedDictionaryText.InsertHereTooltip
+        };
+
+        m_AddLastContent = new GUIContent
+        {
+            image = EditorGUIUtility.IconContent("d_addmore").image,
+            tooltip = OrderedDictionaryText.AddLastTooltip
+        };
+
+        m_RemoveContent = new GUIContent
+        {
+            image = EditorGUIUtility.IconContent("d_remove").image,
+            tooltip = OrderedDictionaryText.RemoveTooltip
+        };
+
+        m_MoveUpContent = new GUIContent
+        {
+            image = EditorGUIUtility.IconContent("d_scrollup@2x").image,
+            tooltip = OrderedDictionaryText.MoveUpTooltip
+        };
+
+        m_MoveDownContent = new GUIContent
+        {
+            image = EditorGUIUtility.IconContent("d_scrolldown@2x").image,
+            tooltip = OrderedDictionaryText.MoveDownTooltip
+        };
+
+        if (m_Property == null && m_TargetObjects.Length != 0)
+        {
+            var serializedObject = new SerializedObject(m_TargetObjects);
+            InternalSelectProperty(serializedObject.FindProperty(m_PropertyPath));
+        }
+        else
+        {
+            Refresh();
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (m_Property == null)
+        {
+            EditorGUILayout.LabelField("No property selected.");
+            return;
         }
 
-        private const int kButtonWidth = 18;
-        private const int kScrollSize = 14;
+        m_Property.serializedObject.Update();
 
-        [SerializeField]
-        private Object[] m_TargetObjects = Array.Empty<Object>();
-        [SerializeField]
-        private string m_PropertyPath = "";
-        [SerializeField]
-        private Vector2 m_Scroll;
+        var layout = position.ZeroPosition().MarginTop(EditorGUIUtility.standardVerticalSpacing);
+        float toolsWidth = (kButtonWidth + EditorGUIUtility.standardVerticalSpacing) * 4;
+        DrawContents(layout, toolsWidth);
+        DrawMainBorders(layout, toolsWidth);
 
-        private GUIContent m_DefaultLabelContent;
-        private SerializedProperty m_Property;
-        private SerializedProperty m_Rows;
-        private Object m_ClassDefaultObject;
-        private SerializedProperty m_ClassDefaultObjectProperty;
-        private SerializedProperty m_CDOCopySource;
-        private SerializedProperty m_CDOCopySourceKey;
+        m_UpdateQueue?.Invoke();
+        m_UpdateQueue = null;
 
-        private ColumnDefinition[] m_KeyColumns = Array.Empty<ColumnDefinition>();
-        private ColumnDefinition[] m_ValueColumns = Array.Empty<ColumnDefinition>();
-        private event Action m_UpdateQueue;
-        private readonly HashSet<object> m_KeyCollection = new();
+        m_Property.serializedObject.ApplyModifiedProperties();
 
-        private GUIContent m_InsertHereContent;
-        private GUIContent m_AddLastContent;
-        private GUIContent m_RemoveContent;
-        private GUIContent m_MoveUpContent;
-        private GUIContent m_MoveDownContent;
+        const int kMinimumRowCount = 5;
+        minSize = new Vector2(
+            m_KeyColumns.Sum(c => c.Width) + kDefaultWidth + toolsWidth + kScrollSize,
+            (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing) * 2 + kScrollSize + (EditorGUIUtility.singleLineHeight + 1) * kMinimumRowCount + EditorGUIUtility.standardVerticalSpacing
+            );
 
-        private DragHandle m_DragHandle;
-
-        private void OnEnable()
+        var current = Event.current;
+        if (current == null)
         {
-            m_DefaultLabelContent = new GUIContent { text = "O" };
-
-            m_InsertHereContent = new GUIContent
-            {
-                image = EditorGUIUtility.IconContent("d_addmore").image,
-                tooltip = OrderedDictionaryText.InsertHereTooltip
-            };
-
-            m_AddLastContent = new GUIContent
-            {
-                image = EditorGUIUtility.IconContent("d_addmore").image,
-                tooltip = OrderedDictionaryText.AddLastTooltip
-            };
-
-            m_RemoveContent = new GUIContent
-            {
-                image = EditorGUIUtility.IconContent("d_remove").image,
-                tooltip = OrderedDictionaryText.RemoveTooltip
-            };
-
-            m_MoveUpContent = new GUIContent
-            {
-                image = EditorGUIUtility.IconContent("d_scrollup@2x").image,
-                tooltip = OrderedDictionaryText.MoveUpTooltip
-            };
-
-            m_MoveDownContent = new GUIContent
-            {
-                image = EditorGUIUtility.IconContent("d_scrolldown@2x").image,
-                tooltip = OrderedDictionaryText.MoveDownTooltip
-            };
-
-            if (m_Property == null && m_TargetObjects.Length != 0)
-            {
-                var serializedObject = new SerializedObject(m_TargetObjects);
-                InternalSelectProperty(serializedObject.FindProperty(m_PropertyPath));
-            }
-            else
-            {
-                Refresh();
-            }
+            return;
         }
 
-        private void OnGUI()
+        if (m_DragHandle != null)
         {
-            if (m_Property == null)
+            try
             {
-                EditorGUILayout.LabelField("No property selected.");
-                return;
-            }
-
-            m_Property.serializedObject.Update();
-
-            var layout = position.ZeroPosition().MarginTop(EditorGUIUtility.standardVerticalSpacing);
-            float toolsWidth = (kButtonWidth + EditorGUIUtility.standardVerticalSpacing) * 4;
-            DrawContents(layout, toolsWidth);
-            DrawMainBorders(layout, toolsWidth);
-
-            m_UpdateQueue?.Invoke();
-            m_UpdateQueue = null;
-
-            m_Property.serializedObject.ApplyModifiedProperties();
-
-            const int kMinimumRowCount = 5;
-            minSize = new Vector2(
-                m_KeyColumns.Sum(c => c.Width) + kDefaultWidth + toolsWidth + kScrollSize,
-                (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing) * 2 + kScrollSize + (EditorGUIUtility.singleLineHeight + 1) * kMinimumRowCount + EditorGUIUtility.standardVerticalSpacing
-                );
-
-            var current = Event.current;
-            if (current == null)
-            {
-                return;
-            }
-
-            if (m_DragHandle != null)
-            {
-                try
-                {
-                    if (m_DragHandle.Update(current) == false)
-                    {
-                        m_DragHandle.Dispose();
-                        m_DragHandle = null;
-                    }
-                }
-                catch
+                if (m_DragHandle.Update(current) == false)
                 {
                     m_DragHandle.Dispose();
-                    throw;
+                    m_DragHandle = null;
                 }
             }
-        }
-
-        private void OnDestroy()
-        {
-            TryDeleteClassDefaultObject();
-        }
-
-        private void DrawContents(Rect rect, float toolsWidth)
-        {
-            var bottomScroll = rect.FillBottom(kScrollSize);
-
-            var rightScroll = rect.FillRight(kScrollSize);
-            rect = rect.MarginBottom(bottomScroll.height).MarginRight(kScrollSize);
-
-            var headerLayout = rect.FillTop(EditorGUIUtility.singleLineHeight);
-            rect = rect.MarginTop(headerLayout.height + EditorGUIUtility.standardVerticalSpacing);
-            var inputLayout = rect.FillBottom(EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing);
-            rect = rect.MarginBottom(inputLayout.height);
-            var rowsLayout = rect.MarginTop(EditorGUIUtility.standardVerticalSpacing);
-
-            bool keyAdd = m_KeyCollection.Add(m_CDOCopySourceKey.boxedValue);
-            m_KeyCollection.Clear();
-
-            DrawColumns(headerLayout, toolsWidth);
-            DrawRows(rowsLayout, toolsWidth, m_KeyCollection, keyAdd);
-            DrawInputBar(inputLayout.MarginTop(EditorGUIUtility.standardVerticalSpacing), toolsWidth, keyAdd);
-
-            var keyWidth = m_KeyColumns.Sum(c => c.Width);
-            var valueWidth = m_ValueColumns.Sum(c => c.Width);
-            var valueViewWidth = rect.width - keyWidth - toolsWidth - (EditorGUIUtility.standardVerticalSpacing - 1);
-            using (GUIScope.Disabled(valueWidth <= valueViewWidth))
+            catch
             {
-                var horizontalScrollRect = bottomScroll.MarginLeft(keyWidth).MarginRight(toolsWidth + kScrollSize);
-                m_Scroll.x = GUI.HorizontalScrollbar(
-                    horizontalScrollRect,
-                    m_Scroll.x,
-                    valueViewWidth,
-                    0,
-                    Mathf.Max(valueWidth, valueViewWidth)
-                    );
+                m_DragHandle!.Dispose();
+                throw;
             }
-            EditorGUI.DrawRect(bottomScroll.FillTop(1), Color.black);
-
-            var rowsHeight = m_Rows.arraySize * (EditorGUIUtility.singleLineHeight + 1) - 1;
-            var rowsViewHeight = rowsLayout.height;
-            using (GUIScope.Disabled(rowsHeight <= rowsViewHeight))
-            {
-                m_Scroll.y = GUI.VerticalScrollbar(
-                    rightScroll.MarginTop(headerLayout.height).MarginBottom(inputLayout.height + kScrollSize),
-                    m_Scroll.y,
-                    rowsViewHeight,
-                    0,
-                    Mathf.Max(rowsHeight, rowsViewHeight)
-                    );
-            }
-            EditorGUI.DrawRect(rightScroll.FillLeft(1), Color.black);
         }
+    }
 
-        private void DrawRows(Rect rect, float toolsWidth, HashSet<object> keyCollection, bool keyAdd)
+    private void OnDestroy()
+    {
+        TryDeleteClassDefaultObject();
+    }
+
+    private void DrawContents(Rect rect, float toolsWidth)
+    {
+        var bottomScroll = rect.FillBottom(kScrollSize);
+
+        var rightScroll = rect.FillRight(kScrollSize);
+        rect = rect.MarginBottom(bottomScroll.height).MarginRight(kScrollSize);
+
+        var headerLayout = rect.FillTop(EditorGUIUtility.singleLineHeight);
+        rect = rect.MarginTop(headerLayout.height + EditorGUIUtility.standardVerticalSpacing);
+        var inputLayout = rect.FillBottom(EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing);
+        rect = rect.MarginBottom(inputLayout.height);
+        var rowsLayout = rect.MarginTop(EditorGUIUtility.standardVerticalSpacing);
+
+        bool keyAdd = m_KeyCollection.Add(m_CDOCopySourceKey!.boxedValue);
+        m_KeyCollection.Clear();
+
+        DrawColumns(headerLayout, toolsWidth);
+        DrawRows(rowsLayout, toolsWidth, m_KeyCollection, keyAdd);
+        DrawInputBar(inputLayout.MarginTop(EditorGUIUtility.standardVerticalSpacing), toolsWidth, keyAdd);
+
+        var keyWidth = m_KeyColumns.Sum(c => c.Width);
+        var valueWidth = m_ValueColumns.Sum(c => c.Width);
+        var valueViewWidth = rect.width - keyWidth - toolsWidth - (EditorGUIUtility.standardVerticalSpacing - 1);
+        using (GUIScope.Disabled(valueWidth <= valueViewWidth))
         {
-            int arraySize = m_Rows.arraySize;
+            var horizontalScrollRect = bottomScroll.MarginLeft(keyWidth).MarginRight(toolsWidth + kScrollSize);
+            m_Scroll.x = GUI.HorizontalScrollbar(
+                horizontalScrollRect,
+                m_Scroll.x,
+                valueViewWidth,
+                0,
+                Mathf.Max(valueWidth, valueViewWidth)
+                );
+        }
+        EditorGUI.DrawRect(bottomScroll.FillTop(1), Color.black);
 
-            var outerArea = rect;
-            using (GUIScope.Area(rect))
+        var rowsHeight = m_Rows!.arraySize * (EditorGUIUtility.singleLineHeight + 1) - 1;
+        var rowsViewHeight = rowsLayout.height;
+        using (GUIScope.Disabled(rowsHeight <= rowsViewHeight))
+        {
+            m_Scroll.y = GUI.VerticalScrollbar(
+                rightScroll.MarginTop(headerLayout.height).MarginBottom(inputLayout.height + kScrollSize),
+                m_Scroll.y,
+                rowsViewHeight,
+                0,
+                Mathf.Max(rowsHeight, rowsViewHeight)
+                );
+        }
+        EditorGUI.DrawRect(rightScroll.FillLeft(1), Color.black);
+    }
+
+    private void DrawRows(Rect rect, float toolsWidth, HashSet<object> keyCollection, bool keyAdd)
+    {
+        int arraySize = m_Rows!.arraySize;
+
+        var outerArea = rect;
+        using (GUIScope.Area(rect))
+        {
+            rect = rect.ZeroPosition().MarginTop(-m_Scroll.y);
+
+            for (int i = 0; i < arraySize; ++i)
             {
-                rect = rect.ZeroPosition().MarginTop(-m_Scroll.y);
+                var element = m_Rows.GetArrayElementAtIndex(i);
+                var rowRect = rect.FillTop(EditorGUIUtility.singleLineHeight);
 
-                for (int i = 0; i < arraySize; ++i)
+                element.Next(true);  // Key
+                if (!keyCollection.Add(element.boxedValue))
                 {
-                    var element = m_Rows.GetArrayElementAtIndex(i);
-                    var rowRect = rect.FillTop(EditorGUIUtility.singleLineHeight);
+                    EditorGUI.DrawRect(rowRect, Color.red);
+                }
+                int index = 0;
+                VisitChildren(element, child =>
+                {
+                    ref var c = ref m_KeyColumns[index++];
+                    var r = rowRect.FillLeft(c.Width);
+                    DrawPropertyField(r, child, index != m_KeyColumns.Length);
+                    rowRect = rowRect.MarginLeft(c.Width);
+                });
 
-                    element.Next(true);  // Key
-                    if (!keyCollection.Add(element.boxedValue))
-                    {
-                        EditorGUI.DrawRect(rowRect, Color.red);
-                    }
-                    int index = 0;
+                var area = rowRect.MarginRight(toolsWidth);
+                using (GUIScope.Area(area))
+                {
+                    var zp = rowRect.ZeroPosition().MarginLeft(EditorGUIUtility.standardVerticalSpacing - m_Scroll.x);
+                    index = 0;
                     VisitChildren(element, child =>
                     {
-                        ref var c = ref m_KeyColumns[index++];
-                        var r = rowRect.FillLeft(c.Width);
-                        DrawPropertyField(r, child, index != m_KeyColumns.Length);
-                        rowRect = rowRect.MarginLeft(c.Width);
-                    });
-
-                    var area = rowRect.MarginRight(toolsWidth);
-                    using (GUIScope.Area(area))
-                    {
-                        var zp = rowRect.ZeroPosition().MarginLeft(EditorGUIUtility.standardVerticalSpacing - m_Scroll.x);
-                        index = 0;
-                        VisitChildren(element, child =>
+                        ref var c = ref m_ValueColumns[index++];
+                        var r = zp.FillLeft(c.Width);
+                        if (r.x <= area.width && r.xMax > 0 && rowRect.y <= outerArea.height && rowRect.yMax > 0)
                         {
-                            ref var c = ref m_ValueColumns[index++];
-                            var r = zp.FillLeft(c.Width);
-                            if (r.x <= area.width && r.xMax > 0 && rowRect.y <= outerArea.height && rowRect.yMax > 0)
-                            {
-                                DrawPropertyField(r, child, true);
-                            }
-                            zp = zp.MarginLeft(c.Width);
-                        });
-                    }
-
-                    var toolbarRect = rowRect.FillRight(toolsWidth).MarginLeft(EditorGUIUtility.standardVerticalSpacing);
-                    using (GUIScope.Disabled(!keyAdd))
-                    {
-                        if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_InsertHereContent, EditorStyles.iconButton))
-                        {
-                            int ii = i;
-                            m_UpdateQueue += () => InsertNewElementAt(ii);
+                            DrawPropertyField(r, child, true);
                         }
-                    }
-                    toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
-                    if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_RemoveContent, EditorStyles.iconButton))
+                        zp = zp.MarginLeft(c.Width);
+                    });
+                }
+
+                var toolbarRect = rowRect.FillRight(toolsWidth).MarginLeft(EditorGUIUtility.standardVerticalSpacing);
+                using (GUIScope.Disabled(!keyAdd))
+                {
+                    if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_InsertHereContent, EditorStyles.iconButton))
                     {
                         int ii = i;
-                        m_UpdateQueue += () => m_Rows.DeleteArrayElementAtIndex(ii);
+                        m_UpdateQueue += () => InsertNewElementAt(ii);
                     }
-                    toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
-                    using (GUIScope.Disabled(i == 0))
-                    {
-                        if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_MoveUpContent, EditorStyles.iconButton))
-                        {
-                            int ii = i;
-                            m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii - 1);
-                        }
-                    }
-                    toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
-                    using (GUIScope.Disabled(i == arraySize - 1))
-                    {
-                        if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_MoveDownContent, EditorStyles.iconButton))
-                        {
-                            int ii = i;
-                            m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii + 1);
-                        }
-                    }
-
-                    rect = rect.MarginTop(rowRect.height);
-                    EditorGUI.DrawRect(rect.FillTop(1), Color.black);
-                    rect = rect.MarginTop(1);
                 }
+                toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
+                if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_RemoveContent, EditorStyles.iconButton))
+                {
+                    int ii = i;
+                    m_UpdateQueue += () => m_Rows.DeleteArrayElementAtIndex(ii);
+                }
+                toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
+                using (GUIScope.Disabled(i == 0))
+                {
+                    if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_MoveUpContent, EditorStyles.iconButton))
+                    {
+                        int ii = i;
+                        m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii - 1);
+                    }
+                }
+                toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
+                using (GUIScope.Disabled(i == arraySize - 1))
+                {
+                    if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_MoveDownContent, EditorStyles.iconButton))
+                    {
+                        int ii = i;
+                        m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii + 1);
+                    }
+                }
+
+                rect = rect.MarginTop(rowRect.height);
+                EditorGUI.DrawRect(rect.FillTop(1), Color.black);
+                rect = rect.MarginTop(1);
+            }
+        }
+
+        var current = Event.current;
+        if (current == null)
+        {
+            return;
+        }
+
+        if (current.rawType == EventType.ScrollWheel && outerArea.Contains(current.mousePosition))
+        {
+            float scale = EditorGUIUtility.singleLineHeight * 0.5f;
+            if (current.control)
+            {
+                scale *= 3.0f;
+            }
+
+            m_Scroll += current.delta * scale;
+            Repaint();
+        }
+    }
+
+    private void DrawMainBorders(Rect rect, float toolsWidth)
+    {
+        HorizontalBorder.Draw(new DrawingArgs(rect.MarginTop(EditorGUIUtility.singleLineHeight)));
+        HorizontalBorder.Draw(new DrawingArgs(rect.FillBottom(EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing + kScrollSize)));
+        VerticalBorder.Draw(new DrawingArgs(rect.MarginLeft(m_KeyColumns.Sum(c => c.Width))));
+        VerticalBorder.Draw(new DrawingArgs(rect.FillRight(toolsWidth + kScrollSize)));
+    }
+
+    private void DrawInputBar(Rect rect, float toolsWidth, bool keyAdd)
+    {
+        m_ClassDefaultObjectProperty!.serializedObject.Update();
+
+        for (int i = 0; i < m_KeyColumns.Length; ++i)
+        {
+            ref var c = ref m_KeyColumns[i];
+            var r = rect.FillLeft(c.Width);
+            DrawPropertyField(r, c.Property, i != m_KeyColumns.Length - 1);
+            rect = rect.MarginLeft(c.Width);
+        }
+        var area = rect.MarginRight(toolsWidth);
+        using (GUIScope.Area(area))
+        {
+            var zp = rect.ZeroPosition().MarginLeft(EditorGUIUtility.standardVerticalSpacing - m_Scroll.x);
+            for (int i = 0; i < m_ValueColumns.Length; ++i)
+            {
+                ref var c = ref m_ValueColumns[i];
+                var r = zp.FillLeft(c.Width);
+                if (r.x <= area.width && r.xMax > 0)
+                {
+                    DrawPropertyField(r, c.Property, true);
+                }
+                zp = zp.MarginLeft(c.Width);
+            }
+        }
+
+        m_ClassDefaultObjectProperty.serializedObject.ApplyModifiedProperties();
+
+        var toolbarRect = rect.FillRight(toolsWidth).MarginLeft(EditorGUIUtility.standardVerticalSpacing);
+        using (GUIScope.Disabled(!keyAdd))
+        {
+            if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_AddLastContent, EditorStyles.iconButton))
+            {
+                InsertNewElementAt(null);
+            }
+        }
+    }
+
+    private void DrawColumns(Rect rect, float toolsWidth)
+    {
+        for (int i = 0; i < m_KeyColumns.Length; ++i)
+        {
+            ref var c = ref m_KeyColumns[i];
+            var r = rect.FillLeft(c.Width);
+            DrawColumnName(ref c, r, i != m_KeyColumns.Length - 1);
+            rect = rect.MarginLeft(c.Width);
+        }
+        rect = rect.MarginLeft(EditorGUIUtility.standardVerticalSpacing);
+        var area = rect.MarginRight(toolsWidth);
+        using (GUIScope.Area(area))
+        {
+            rect = rect.ZeroPosition().MarginLeft(-m_Scroll.x);
+            for (int i = 0; i < m_ValueColumns.Length; ++i)
+            {
+                ref var c = ref m_ValueColumns[i];
+                var r = rect.FillLeft(c.Width);
+                if (r.x > area.width)
+                {
+                    break;
+                }
+                if (r.xMax > 0)
+                {
+                    DrawColumnName(ref c, r, true);
+                }
+                rect = rect.MarginLeft(c.Width);
+            }
+        }
+
+        return;
+
+        void DrawColumnName(ref ColumnDefinition c, Rect r, bool drawBorder)
+        {
+            var content = EditorGUIHelper.TempContent(c.Name);
+            GUI.Label(r.MarginLeft(EditorGUIUtility.standardVerticalSpacing), content, EditorStyles.boldLabel);
+            var size = EditorStyles.boldLabel.CalcSize(content);
+            r = r.MarginLeft(size.x + EditorGUIUtility.standardVerticalSpacing);
+            GUI.Label(r, $"[{c.TypeName}]");
+            if (drawBorder)
+            {
+                EditorGUI.DrawRect(r.FillRight(1), Color.black);
             }
 
             var current = Event.current;
-            if (current == null)
+            var handleRect = r.FillRight(2);
+            EditorGUIUtility.AddCursorRect(handleRect, MouseCursor.ResizeHorizontal);
+            if (current.rawType == EventType.MouseDown && handleRect.Contains(current.mousePosition))
             {
-                return;
-            }
-
-            if (current.rawType == EventType.ScrollWheel && outerArea.Contains(current.mousePosition))
-            {
-                float scale = EditorGUIUtility.singleLineHeight * 0.5f;
-                if (current.control)
+                m_DragHandle?.Dispose();
+                m_DragHandle = new DragHandle(current, 0);
+                var cc = c;
+                var initial = c.Width;
+                m_DragHandle.MouseMove += (distance, _) =>
                 {
-                    scale *= 3.0f;
-                }
-
-                m_Scroll += current.delta * scale;
-                Repaint();
+                    var nx = initial + distance.x;
+                    cc.Width = (int)nx;
+                    Repaint();
+                };
             }
         }
+    }
 
-        private void DrawMainBorders(Rect rect, float toolsWidth)
+    private void InsertNewElementAt(int? index)
+    {
+        var copyDest = m_Property!.Copy();
+        copyDest.Next(true);  // m_Rows
+        index ??= copyDest.arraySize;
+        copyDest.InsertArrayElementAtIndex(index.Value);
+        var newElement = copyDest.GetArrayElementAtIndex(index.Value);
+        newElement.boxedValue = m_CDOCopySource!.boxedValue;
+    }
+
+    public void SelectProperty(SerializedProperty property)
+    {
+        m_TargetObjects = property.serializedObject.targetObjects;
+        m_PropertyPath = property.propertyPath;
+        InternalSelectProperty(property);
+    }
+
+    private void InternalSelectProperty(SerializedProperty property)
+    {
+        m_Property = property;
+        TryDeleteClassDefaultObject();
+        if (m_Property == null)
         {
-            HorizontalBorder.Draw(new DrawingArgs(rect.MarginTop(EditorGUIUtility.singleLineHeight)));
-            HorizontalBorder.Draw(new DrawingArgs(rect.FillBottom(EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing + kScrollSize)));
-            VerticalBorder.Draw(new DrawingArgs(rect.MarginLeft(m_KeyColumns.Sum(c => c.Width))));
-            VerticalBorder.Draw(new DrawingArgs(rect.FillRight(toolsWidth + kScrollSize)));
-        }
-
-        private void DrawInputBar(Rect rect, float toolsWidth, bool keyAdd)
-        {
-            m_ClassDefaultObjectProperty.serializedObject.Update();
-
-            for (int i = 0; i < m_KeyColumns.Length; ++i)
-            {
-                ref var c = ref m_KeyColumns[i];
-                var r = rect.FillLeft(c.Width);
-                DrawPropertyField(r, c.Property, i != m_KeyColumns.Length - 1);
-                rect = rect.MarginLeft(c.Width);
-            }
-            var area = rect.MarginRight(toolsWidth);
-            using (GUIScope.Area(area))
-            {
-                var zp = rect.ZeroPosition().MarginLeft(EditorGUIUtility.standardVerticalSpacing - m_Scroll.x);
-                for (int i = 0; i < m_ValueColumns.Length; ++i)
-                {
-                    ref var c = ref m_ValueColumns[i];
-                    var r = zp.FillLeft(c.Width);
-                    if (r.x <= area.width && r.xMax > 0)
-                    {
-                        DrawPropertyField(r, c.Property, true);
-                    }
-                    zp = zp.MarginLeft(c.Width);
-                }
-            }
-
-            m_ClassDefaultObjectProperty.serializedObject.ApplyModifiedProperties();
-
-            var toolbarRect = rect.FillRight(toolsWidth).MarginLeft(EditorGUIUtility.standardVerticalSpacing);
-            using (GUIScope.Disabled(!keyAdd))
-            {
-                if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_AddLastContent, EditorStyles.iconButton))
-                {
-                    InsertNewElementAt(null);
-                }
-            }
-        }
-
-        private void DrawColumns(Rect rect, float toolsWidth)
-        {
-            for (int i = 0; i < m_KeyColumns.Length; ++i)
-            {
-                ref var c = ref m_KeyColumns[i];
-                var r = rect.FillLeft(c.Width);
-                DrawColumnName(ref c, r, i != m_KeyColumns.Length - 1);
-                rect = rect.MarginLeft(c.Width);
-            }
-            rect = rect.MarginLeft(EditorGUIUtility.standardVerticalSpacing);
-            var area = rect.MarginRight(toolsWidth);
-            using (GUIScope.Area(area))
-            {
-                rect = rect.ZeroPosition().MarginLeft(-m_Scroll.x);
-                for (int i = 0; i < m_ValueColumns.Length; ++i)
-                {
-                    ref var c = ref m_ValueColumns[i];
-                    var r = rect.FillLeft(c.Width);
-                    if (r.x > area.width)
-                    {
-                        break;
-                    }
-                    if (r.xMax > 0)
-                    {
-                        DrawColumnName(ref c, r, true);
-                    }
-                    rect = rect.MarginLeft(c.Width);
-                }
-            }
-
             return;
-
-            void DrawColumnName(ref ColumnDefinition c, Rect r, bool drawBorder)
-            {
-                var content = EditorGUIHelper.TempContent(c.Name);
-                GUI.Label(r.MarginLeft(EditorGUIUtility.standardVerticalSpacing), content, EditorStyles.boldLabel);
-                var size = EditorStyles.boldLabel.CalcSize(content);
-                r = r.MarginLeft(size.x + EditorGUIUtility.standardVerticalSpacing);
-                GUI.Label(r, $"[{c.TypeName}]");
-                if (drawBorder)
-                {
-                    EditorGUI.DrawRect(r.FillRight(1), Color.black);
-                }
-
-                var current = Event.current;
-                var handleRect = r.FillRight(2);
-                EditorGUIUtility.AddCursorRect(handleRect, MouseCursor.ResizeHorizontal);
-                if (current.rawType == EventType.MouseDown && handleRect.Contains(current.mousePosition))
-                {
-                    m_DragHandle?.Dispose();
-                    m_DragHandle = new DragHandle(current, 0);
-                    var cc = c;
-                    var initial = c.Width;
-                    m_DragHandle.MouseMove += (distance, _) =>
-                    {
-                        var nx = initial + distance.x;
-                        cc.Width = (int)nx;
-                        Repaint();
-                    };
-                }
-            }
+        }
+        var propertyType = property.boxedValue.GetType();
+        if (propertyType.GetGenericTypeDefinition() != typeof(OrderedDictionary<,>))
+        {
+            m_Property = null;
+            return;
         }
 
-        private void InsertNewElementAt(int? index)
+        try
         {
-            var copyDest = m_Property.Copy();
-            copyDest.Next(true);  // m_Rows
-            index ??= copyDest.arraySize;
-            copyDest.InsertArrayElementAtIndex(index.Value);
-            var newElement = copyDest.GetArrayElementAtIndex(index.Value);
-            newElement.boxedValue = m_CDOCopySource.boxedValue;
-        }
-
-        public void SelectProperty(SerializedProperty property)
-        {
-            m_TargetObjects = property.serializedObject.targetObjects;
-            m_PropertyPath = property.propertyPath;
-            InternalSelectProperty(property);
-        }
-
-        private void InternalSelectProperty(SerializedProperty property)
-        {
-            m_Property = property;
-            TryDeleteClassDefaultObject();
-            if (m_Property == null)
-            {
-                return;
-            }
-
             m_Rows = m_Property.Copy();
             m_Rows.Next(true);
-            var propertyType = property.boxedValue.GetType();
-            if (propertyType.GetGenericTypeDefinition() != typeof(OrderedDictionary<,>))
-            {
-                return;
-            }
 
             var ga = propertyType.GetGenericArguments();
             var keyType = ga[0];
@@ -533,134 +536,144 @@ namespace Ayla
             m_CDOCopySourceKey.Next(true);
             Refresh();
         }
-
-        private void Refresh()
+        catch
         {
-            titleContent = new GUIContent(OrderedDictionaryText.Title + " - " + FormatTargetObjects());
+            m_Property = null;
+            m_Rows = null;
+            m_ClassDefaultObject = null;
+            m_ClassDefaultObjectProperty = null;
+            m_CDOCopySource = null;
+            m_CDOCopySourceKey = null;
+            throw;
+        }
+    }
 
-            if (m_ClassDefaultObjectProperty == null)
+    private void Refresh()
+    {
+        titleContent = new GUIContent(OrderedDictionaryText.Title + " - " + FormatTargetObjects());
+
+        if (m_ClassDefaultObjectProperty == null)
+        {
+            m_KeyColumns = Array.Empty<ColumnDefinition>();
+            m_ValueColumns = Array.Empty<ColumnDefinition>();
+        }
+        else
+        {
+            var copy = m_ClassDefaultObjectProperty.Copy(); // m_Rows
+            copy.Next(true); // m_Rows.Array
+            copy.Next(true); // m_Rows.Array.size
+            copy.Next(false); // m_Rows.Array.data[0]
+            copy.Next(true); // Key
+            using var scope1 = ListPool<ColumnDefinition>.Get(out var columns);
+            string assemblyQualifiedName = m_Property!.serializedObject.targetObject.GetType().AssemblyQualifiedName;
+            VisitChildren(copy, p =>
             {
-                m_KeyColumns = Array.Empty<ColumnDefinition>();
-                m_ValueColumns = Array.Empty<ColumnDefinition>();
+                columns.Add(new ColumnDefinition(p.name, p.type, assemblyQualifiedName + "$" + p.propertyPath, p.Copy()));
+            });
+            m_KeyColumns = columns.ToArray();
+            columns.Clear();
+            VisitChildren(copy, p =>
+            {
+                columns.Add(new ColumnDefinition(p.name, p.type, assemblyQualifiedName + "$" + p.propertyPath, p.Copy()));
+            });
+            m_ValueColumns = columns.ToArray();
+        }
+
+        return;
+
+        string FormatTargetObjects()
+        {
+            var targetObjects = m_Property?.serializedObject.targetObjects ?? Array.Empty<Object>();
+            if (targetObjects.Length == 1)
+            {
+                return targetObjects[0].name;
+            }
+            else if (targetObjects.Length != 0)
+            {
+                return string.Format(OrderedDictionaryText.TitleAppend, targetObjects[0].name, targetObjects.Length - 1);
             }
             else
             {
-                var copy = m_ClassDefaultObjectProperty.Copy(); // m_Rows
-                copy.Next(true); // m_Rows.Array
-                copy.Next(true); // m_Rows.Array.size
-                copy.Next(false); // m_Rows.Array.data[0]
-                copy.Next(true); // Key
-                using var scope1 = ListPool<ColumnDefinition>.Get(out var columns);
-                string assemblyQualifiedName = m_Property.serializedObject.targetObject.GetType().AssemblyQualifiedName;
-                VisitChildren(copy, p =>
-                {
-                    columns.Add(new ColumnDefinition(p.name, p.type, assemblyQualifiedName + "$" + p.propertyPath, p.Copy()));
-                });
-                m_KeyColumns = columns.ToArray();
-                columns.Clear();
-                VisitChildren(copy, p =>
-                {
-                    columns.Add(new ColumnDefinition(p.name, p.type, assemblyQualifiedName + "$" + p.propertyPath, p.Copy()));
-                });
-                m_ValueColumns = columns.ToArray();
-            }
-
-            return;
-
-            string FormatTargetObjects()
-            {
-                var targetObjects = m_Property?.serializedObject.targetObjects ?? Array.Empty<Object>();
-                if (targetObjects.Length == 1)
-                {
-                    return targetObjects[0].name;
-                }
-                else if (targetObjects.Length != 0)
-                {
-                    return string.Format(OrderedDictionaryText.TitleAppend, targetObjects[0].name, targetObjects.Length - 1);
-                }
-                else
-                {
-                    return "<error>";
-                }
+                return "<error>";
             }
         }
+    }
 
-        private void TryDeleteClassDefaultObject()
+    private void TryDeleteClassDefaultObject()
+    {
+        if (m_ClassDefaultObject)
         {
-            if (m_ClassDefaultObject)
+            DestroyImmediate(m_ClassDefaultObject);
+            m_ClassDefaultObject = null;
+        }
+    }
+
+    private void DrawPropertyField(Rect r, SerializedProperty p, bool drawBorder)
+    {
+        using (EditorGUIScope.LabelWidth(EditorGUIUtility.singleLineHeight * 0.7f))
+        using (EditorGUIScope.WideMode(true))
+        {
+            var labelContent = !p.isArray && p.hasVisibleChildren ? GUIContent.none : m_DefaultLabelContent;
+            EditorGUI.PropertyField(r.Margin(EditorGUIUtility.standardVerticalSpacing, 0), p, labelContent);
+            if (drawBorder)
             {
-                DestroyImmediate(m_ClassDefaultObject);
-                m_ClassDefaultObject = null;
+                EditorGUI.DrawRect(r.FillRight(1), Color.black);
             }
         }
+    }
 
-        private void DrawPropertyField(Rect r, SerializedProperty p, bool drawBorder)
+    private static void VisitChildren(SerializedProperty prop, Action<SerializedProperty> body)
+    {
+        if (prop.hasChildren && !prop.isArray)
         {
-            using (EditorGUIScope.LabelWidth(EditorGUIUtility.singleLineHeight * 0.7f))
-            using (EditorGUIScope.WideMode(true))
-            {
-                var labelContent = !p.isArray && p.hasVisibleChildren ? GUIContent.none : m_DefaultLabelContent;
-                EditorGUI.PropertyField(r.Margin(EditorGUIUtility.standardVerticalSpacing, 0), p, labelContent);
-                if (drawBorder)
-                {
-                    EditorGUI.DrawRect(r.FillRight(1), Color.black);
-                }
-            }
-        }
-
-        private static void VisitChildren(SerializedProperty prop, Action<SerializedProperty> body)
-        {
-            if (prop.hasChildren && !prop.isArray)
-            {
-                int depth = prop.depth;
-                prop.Next(true);
-                while (depth < prop.depth)
-                {
-                    body(prop);
-                    if (!prop.Next(false))
-                    {
-                        break;
-                    }
-                }
-            }
-            else
+            int depth = prop.depth;
+            prop.Next(true);
+            while (depth < prop.depth)
             {
                 body(prop);
-                prop.Next(false);
+                if (!prop.Next(false))
+                {
+                    break;
+                }
             }
         }
-
-        private static readonly ModuleBuilder s_CDOModuleBuilder;
-        private static readonly ConcurrentDictionary<(Type KeyType, Type ValueType), Type> s_CDOTypes = new();
-
-        static OrderedDictionaryEditor()
+        else
         {
-            var assemblyName = new AssemblyName("DynamicDataTableAssembly");
-            var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-            s_CDOModuleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
+            body(prop);
+            prop.Next(false);
         }
+    }
 
-        private static Type GetClassDefaultType(Type keyType, Type valueType)
+    private static readonly ModuleBuilder s_CDOModuleBuilder;
+    private static readonly ConcurrentDictionary<(Type KeyType, Type ValueType), Type> s_CDOTypes = new();
+
+    static OrderedDictionaryEditor()
+    {
+        var assemblyName = new AssemblyName("DynamicDataTableAssembly");
+        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        s_CDOModuleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
+    }
+
+    private static Type GetClassDefaultType(Type keyType, Type valueType)
+    {
+        var pair = (keyType, valueType);
+
+        return s_CDOTypes.GetOrAdd(pair, static pair2 =>
         {
-            var pair = (keyType, valueType);
+            string typeName = $"DynamicDataTable_{GetSafeName(pair2.KeyType.FullName)}_{GetSafeName(pair2.ValueType.FullName)}";
+            var typeBuilder = s_CDOModuleBuilder.DefineType(
+                typeName,
+                TypeAttributes.Public | TypeAttributes.Class,
+                typeof(DataTable<,>).MakeGenericType(pair2.KeyType, pair2.ValueType)
+            );
+            typeBuilder.SetCustomAttribute(ClassDefaultObjectAttribute.Builder);
+            var type = typeBuilder.CreateType();
+            return type;
+        });
 
-            return s_CDOTypes.GetOrAdd(pair, static pair2 =>
-            {
-                string typeName = $"DynamicDataTable_{GetSafeName(pair2.KeyType.FullName)}_{GetSafeName(pair2.ValueType.FullName)}";
-                var typeBuilder = s_CDOModuleBuilder.DefineType(
-                    typeName,
-                    TypeAttributes.Public | TypeAttributes.Class,
-                    typeof(DataTable<,>).MakeGenericType(pair2.KeyType, pair2.ValueType)
-                );
-                typeBuilder.SetCustomAttribute(ClassDefaultObjectAttribute.Builder);
-                var type = typeBuilder.CreateType();
-                return type;
-            });
-
-            static string GetSafeName(string fullName)
-            {
-                return fullName.Replace('.', '_').Replace("+", "__");
-            }
+        static string GetSafeName(string fullName)
+        {
+            return fullName.Replace('.', '_').Replace("+", "__");
         }
     }
 }
