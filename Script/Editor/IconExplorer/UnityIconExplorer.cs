@@ -48,6 +48,20 @@ namespace Ayla
 
         private void OnGUI()
         {
+            if (!UnityIconCollection.Initialized)
+            {
+                GUILayout.BeginVertical();
+                GUILayout.FlexibleSpace();
+                GUILayout.BeginHorizontal();
+                GUILayout.FlexibleSpace();
+                GUILayout.Label("Loading Unity Icons...", EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                GUILayout.FlexibleSpace();
+                GUILayout.EndVertical();
+                return;
+            }
+
             var drawingArgs = DrawingArgs.MakeRoot(this);
             HeaderLayout.OnGUI(this, drawingArgs);
             drawingArgs = drawingArgs.MarginTop(HeaderLayout.Height);

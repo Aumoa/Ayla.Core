@@ -1,6 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.LowLevel;
+using UnityEngine.PlayerLoop;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Ayla;
 
@@ -12,6 +21,154 @@ namespace Ayla;
 /// that the calling code can handle task completion, cancellation, or exceptions in a consistent manner.</remarks>
 public static class TaskUtility
 {
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+    private static void Initialize()
+    {
+        var system = PlayerLoop.GetCurrentPlayerLoop();
+        var initializationIndex = Array.FindIndex(system.subSystemList, s => s.type == typeof(Initialization));
+        Debug.Assert(initializationIndex != -1);
+        ref var initializationSubsystem = ref system.subSystemList[initializationIndex];
+        initializationSubsystem.subSystemList = initializationSubsystem.subSystemList.Append(new PlayerLoopSystem
+        {
+            type = typeof(OnInitialization),
+            updateDelegate = OnInitialization.Call
+        }).ToArray();
+        PlayerLoop.SetPlayerLoop(system);
+    }
+
+    public readonly struct OnInitialization
+    {
+        private static readonly List<Action> s_Continuations = new();
+        private static readonly List<Action> s_ExecutionBuffer = new();
+
+        internal static void Call()
+        {
+            lock (s_Continuations)
+            {
+                s_ExecutionBuffer.AddRange(s_Continuations);
+                s_Continuations.Clear();
+            }
+
+            int executions = 0;
+            try
+            {
+                foreach (var execution in s_ExecutionBuffer)
+                {
+                    execution();
+                    ++executions;
+                }
+            }
+            finally
+            {
+                s_ExecutionBuffer.RemoveRange(0, executions);
+            }
+        }
+
+        public readonly struct Awaiter : ICriticalNotifyCompletion, INotifyCompletion
+        {
+            private readonly CancellationToken m_CancellationToken;
+
+            public Awaiter(CancellationToken cancellationToken)
+            {
+                m_CancellationToken = cancellationToken;
+            }
+
+            public bool IsCompleted => false;
+
+            public void GetResult()
+            {
+            }
+
+            public void OnCompleted(Action continuation)
+            {
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    var closureCancellationToken = m_CancellationToken;
+                    EditorApplication.delayCall += () =>
+                    {
+                        closureCancellationToken.ThrowIfCancellationRequested();
+                        continuation();
+                    };
+
+                    return;
+                }
+#endif
+
+                lock (s_Continuations)
+                {
+                    if (m_CancellationToken.CanBeCanceled)
+                    {
+                        var closureCancellationToken = m_CancellationToken;
+                        s_Continuations.Add(() =>
+                        {
+                            closureCancellationToken.ThrowIfCancellationRequested();
+                            continuation();
+                        });
+                    }
+                    else
+                    {
+                        s_Continuations.Add(continuation);
+                    }
+                }
+            }
+
+            public void UnsafeOnCompleted(Action continuation)
+            {
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                {
+                    var closureCancellationToken = m_CancellationToken;
+                    EditorApplication.delayCall += () =>
+                    {
+                        closureCancellationToken.ThrowIfCancellationRequested();
+                        continuation();
+                    };
+
+                    return;
+                }
+#endif
+
+                lock (s_Continuations)
+                {
+                    if (m_CancellationToken.CanBeCanceled)
+                    {
+                        var closureCancellationToken = m_CancellationToken;
+                        s_Continuations.Add(() =>
+                        {
+                            closureCancellationToken.ThrowIfCancellationRequested();
+                            continuation();
+                        });
+                    }
+                    else
+                    {
+                        s_Continuations.Add(continuation);
+                    }
+                }
+            }
+        }
+
+        public readonly struct Awaitable
+        {
+            private readonly CancellationToken m_CancellationToken;
+
+            public Awaitable(CancellationToken cancellationToken)
+            {
+                m_CancellationToken = cancellationToken;
+            }
+
+            public Awaiter GetAwaiter()
+            {
+                return new Awaiter(m_CancellationToken);
+            }
+        }
+    }
+
+    public static OnInitialization.Awaitable YieldInitialization(CancellationToken cancellationToken = default)
+    {
+        return new OnInitialization.Awaitable(cancellationToken);
+    }
+
     /// <summary>
     /// Waits asynchronously for the specified task to complete, allowing the wait operation to be canceled using a
     /// cancellation token.

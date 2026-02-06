@@ -117,7 +117,15 @@ public class DevelopmentWindow : EditorWindow, ISerializationCallbackReceiver
     {
         if (!m_Initialized)
         {
-            EditorGUILayout.LabelField("Initializing...");
+            GUILayout.BeginVertical();
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.Label("Loading Development Windows...", EditorStyles.boldLabel);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndVertical();
             return;
         }
 
