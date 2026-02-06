@@ -90,9 +90,21 @@ public static class ReflectionUtility
     /// operations that depend on it. This is typically used in scenarios where subsequent actions require the
     /// initialization to be finished.</remarks>
     /// <returns>A task that represents the asynchronous wait operation. The task completes when initialization has finished.</returns>
-    public static Task WaitForInitializeAsync(CancellationToken cancellationToken = default)
+    public static async ValueTask WaitForInitializeAsync(CancellationToken cancellationToken = default)
     {
-        return Nested.WaitTask.WaitAsync(cancellationToken);
+        await Nested.WaitTask.WaitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Waits asynchronously until the initialization process is complete.
+    /// </summary>
+    /// <remarks>Call this method to ensure that initialization is complete before performing
+    /// operations that depend on it. This is typically used in scenarios where subsequent actions require the
+    /// initialization to be finished.</remarks>
+    /// <returns>A task that represents the asynchronous wait operation. The task completes when initialization has finished.</returns>
+    public static async ValueTask WaitForInitializeAsync()
+    {
+        await Nested.WaitTask;
     }
 
     /// <summary>
