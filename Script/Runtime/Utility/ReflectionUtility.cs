@@ -72,7 +72,7 @@ public static class ReflectionUtility
                 finally
                 {
                     timer.Stop();
-                    Debug.LogFormat("Collect all types for ReflectionUtility tooks {0} ms", timer.ElapsedMilliseconds);
+                    Debug.LogFormat("Collect all types for ReflectionUtility tooks {0}ms in thread-pool", timer.ElapsedMilliseconds);
                 }
             }).ContinueWith(r =>
             {

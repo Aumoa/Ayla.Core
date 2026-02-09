@@ -4,12 +4,12 @@ using Debug = UnityEngine.Debug;
 
 namespace Ayla;
 
-public readonly struct TimerScope : IDisposable
+public readonly struct TimeLogScope : IDisposable
 {
     private readonly string m_Format;
     private readonly Stopwatch m_Stopwatch;
 
-    public TimerScope(string format)
+    public TimeLogScope(string format)
     {
         m_Format = format;
         m_Stopwatch = Stopwatch.StartNew();

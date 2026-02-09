@@ -49,7 +49,7 @@ public static class UnityIconCollection
         {
             try
             {
-                using (new TimerScope("Load Unity Icons tooks {0}"))
+                using (new TimeLogScope("Load Unity Icons tooks {0}"))
                 {
                     using var scope1 = ListPool<Icon>.Get(out var icons);
                     long id = 0;
