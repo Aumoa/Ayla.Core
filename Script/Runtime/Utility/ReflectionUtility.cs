@@ -1,5 +1,3 @@
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,6 +6,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEditor;
+using UnityEngine;
 using UnityEngine.Pool;
 using Debug = UnityEngine.Debug;
 
@@ -80,6 +80,22 @@ public static class ReflectionUtility
                 return s_All;
             });
         }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
+        private static void InitializeCall()
+        {
+        }
+
+#if UNITY_EDITOR
+        [InitializeOnLoadMethod]
+        private static void InitializeEditorCall()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                _ = s_AllTask;
+            }
+        }
+#endif
     }
 
     /// <summary>

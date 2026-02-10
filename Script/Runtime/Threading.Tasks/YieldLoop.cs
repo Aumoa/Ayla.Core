@@ -17,7 +17,7 @@ public static class YieldLoop
             body(i);
             if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
             {
-                await TaskUtility.YieldInitialization(cancellationToken);
+                await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
                 timer.Restart();
             }
         }
@@ -32,7 +32,7 @@ public static class YieldLoop
             results.Add(body(i));
             if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
             {
-                await TaskUtility.YieldInitialization(cancellationToken);
+                await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
                 timer.Restart();
             }
         }
@@ -48,7 +48,7 @@ public static class YieldLoop
             body(item);
             if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
             {
-                await TaskUtility.YieldInitialization(cancellationToken);
+                await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
                 timer.Restart();
             }
         }
@@ -63,7 +63,7 @@ public static class YieldLoop
             results.Add(body(item));
             if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
             {
-                await TaskUtility.YieldInitialization(cancellationToken);
+                await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
                 timer.Restart();
             }
         }
