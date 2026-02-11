@@ -16,16 +16,52 @@ public static class ApplicationMisc
     [InitializeOnLoadMethod]
     private static void EditorStaticAwake()
     {
-        s_MainThreadId = Environment.CurrentManagedThreadId;
+        InitializeThreadId();
     }
 #endif
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
     private static void StaticAwake()
     {
-        s_MainThreadId = Environment.CurrentManagedThreadId;
+        InitializeThreadId();
         CancelAndResetCancellation();
         Application.quitting += OnApplicationQuit;
+    }
+
+    private static void InitializeThreadId()
+    {
+        s_MainThreadId = Environment.CurrentManagedThreadId;
+        var invocable = s_InitializeCallback;
+        s_InitializeCallback = null;
+        invocable?.Invoke();
+    }
+
+    private static Action? s_InitializeCallback;
+
+    public static event Action InitializeCallback
+    {
+        add
+        {
+            if (s_MainThreadId == 0)
+            {
+                s_InitializeCallback += value;
+            }
+            else
+            {
+                value.Invoke();
+            }
+        }
+        remove
+        {
+            if (s_MainThreadId == 0)
+            {
+                s_InitializeCallback -= value;
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot remove event handler when Initialize has already been called.");
+            }
+        }
     }
 
     public static bool IsInMainThread()

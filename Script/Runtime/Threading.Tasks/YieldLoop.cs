@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Pool;
+using Debug = UnityEngine.Debug;
 
 namespace Ayla;
 
@@ -35,16 +36,46 @@ public static class YieldLoop
 
             s_DefaultYield = 1000.0 / fps;
         }
+
+        var invocable = s_InitializeCallback;
+        s_InitializeCallback = null;
+        invocable?.Invoke();
+    }
+
+    private static Action? s_InitializeCallback;
+
+    public static event Action InitializeCallback
+    {
+        add
+        {
+            if (s_DefaultYield == 0)
+            {
+                s_InitializeCallback += value;
+            }
+            else
+            {
+                value.Invoke();
+
+            }
+        }
+        remove
+        {
+            if (s_DefaultYield == 0)
+            {
+                s_InitializeCallback -= value;
+            }
+            else
+            {
+                throw new InvalidOperationException("Cannot remove event handler when Initialize has already been called.");
+            }
+        }
     }
 
 #if UNITY_EDITOR
     [InitializeOnLoadMethod]
     private static void InitializeEditor()
     {
-        if (EditorApplication.isPlayingOrWillChangePlaymode)
-        {
-            Initialize();
-        }
+        Initialize();
     }
 #endif
 
@@ -75,7 +106,10 @@ public static class YieldLoop
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ValueTask For(int fromInclusive, int toExclusive, Action<int> body, CancellationToken cancellationToken = default)
-        => For(fromInclusive, toExclusive, s_DefaultYield, body, cancellationToken);
+    {
+        Debug.Assert(s_DefaultYield != 0);
+        return For(fromInclusive, toExclusive, s_DefaultYield, body, cancellationToken);
+    }
 
     /// <summary>
     /// Executes a function for each integer in the range, collecting results into an array.
@@ -106,7 +140,10 @@ public static class YieldLoop
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ValueTask<T[]> For<T>(int fromInclusive, int toExclusive, Func<int, T> body, CancellationToken cancellationToken = default)
-        => For(fromInclusive, toExclusive, s_DefaultYield, body, cancellationToken);
+    {
+        Debug.Assert(s_DefaultYield != 0);
+        return For(fromInclusive, toExclusive, s_DefaultYield, body, cancellationToken);
+    }
 
     /// <summary>
     /// Executes an action for each element in the collection, yielding when time limit is exceeded.
@@ -130,7 +167,10 @@ public static class YieldLoop
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ValueTask ForEach<T>(IEnumerable<T> enumerable, Action<T> body, CancellationToken cancellationToken = default)
-        => ForEach(enumerable, s_DefaultYield, body, cancellationToken);
+    {
+        Debug.Assert(s_DefaultYield != 0);
+        return ForEach(enumerable, s_DefaultYield, body, cancellationToken);
+    }
 
     /// <summary>
     /// Executes a function for each element in the collection, collecting results into an array.
@@ -157,5 +197,8 @@ public static class YieldLoop
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ValueTask<U[]> ForEach<T, U>(IEnumerable<T> enumerable, Func<T, U> body, CancellationToken cancellationToken = default)
-        => ForEach(enumerable, s_DefaultYield, body, cancellationToken);
+    {
+        Debug.Assert(s_DefaultYield != 0);
+        return ForEach(enumerable, s_DefaultYield, body, cancellationToken);
+    }
 }

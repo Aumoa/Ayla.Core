@@ -2,7 +2,7 @@
     "name": "Ayla.Core.Editor",
     "rootNamespace": "Ayla",
     "references": [
-        "GUID:a54523699f26c2c42a3d0eb6ab1d4732"
+        "Ayla.Core"
     ],
     "includePlatforms": [
         "Editor"

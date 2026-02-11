@@ -1,138 +1,136 @@
-#nullable enable
 using System;
 using UnityEngine;
 
-namespace Ayla
+namespace Ayla;
+
+public static class GUIScope
 {
-    public static class GUIScope
+    public readonly struct ColorScopeBuilder : IDisposable
     {
-        public readonly struct ColorScopeBuilder : IDisposable
+        private readonly Color m_PreviousColor;
+        
+        public ColorScopeBuilder(Color color)
         {
-            private readonly Color m_PreviousColor;
-            
-            public ColorScopeBuilder(Color color)
-            {
-                m_PreviousColor = GUI.color;
-                GUI.color = color;
-            }
-
-            public void Dispose()
-            {
-                GUI.color = m_PreviousColor;
-            }
+            m_PreviousColor = GUI.color;
+            GUI.color = color;
         }
 
-        public static ColorScopeBuilder Color(Color color)
+        public void Dispose()
         {
-            return new ColorScopeBuilder(color);
+            GUI.color = m_PreviousColor;
+        }
+    }
+
+    public static ColorScopeBuilder Color(Color color)
+    {
+        return new ColorScopeBuilder(color);
+    }
+
+    public readonly struct ChangedScopeBuilder : IDisposable
+    {
+        private readonly bool m_Changed;
+        
+        public ChangedScopeBuilder(bool changed)
+        {
+            m_Changed = GUI.changed;
+            GUI.changed = changed;
         }
 
-        public readonly struct ChangedScopeBuilder : IDisposable
+        public void Dispose()
         {
-            private readonly bool m_Changed;
-            
-            public ChangedScopeBuilder(bool changed)
-            {
-                m_Changed = GUI.changed;
-                GUI.changed = changed;
-            }
+            GUI.changed = m_Changed;
+        }
+    }
 
-            public void Dispose()
-            {
-                GUI.changed = m_Changed;
-            }
+    public static ChangedScopeBuilder Changed()
+    {
+        return new ChangedScopeBuilder(false);
+    }
+
+    public readonly struct DisabledScopeBuilder : IDisposable
+    {
+        private readonly bool m_Disabled;
+
+        public DisabledScopeBuilder(bool disabled)
+        {
+            m_Disabled = !GUI.enabled;
+            GUI.enabled = !disabled;
         }
 
-        public static ChangedScopeBuilder Changed()
+        public void Dispose()
         {
-            return new ChangedScopeBuilder(false);
+            GUI.enabled = !m_Disabled;
+        }
+    }
+
+    public static DisabledScopeBuilder Disabled(bool disabled = true)
+    {
+        return new DisabledScopeBuilder(disabled);
+    }
+
+    public readonly struct AreaScopeBuilder : IDisposable
+    {
+        public AreaScopeBuilder(Rect area)
+        {
+            GUILayout.BeginArea(area);
         }
 
-        public readonly struct DisabledScopeBuilder : IDisposable
+        public void Dispose()
         {
-            private readonly bool m_Disabled;
+            GUILayout.EndArea();
+        }
+    }
 
-            public DisabledScopeBuilder(bool disabled)
-            {
-                m_Disabled = !GUI.enabled;
-                GUI.enabled = !disabled;
-            }
+    public static AreaScopeBuilder Area(Rect area)
+    {
+        return new AreaScopeBuilder(area);
+    }
 
-            public void Dispose()
-            {
-                GUI.enabled = !m_Disabled;
-            }
+    public readonly struct VerticalScopeBuilder : IDisposable
+    {
+        private readonly bool m_Valid;
+
+        public VerticalScopeBuilder(bool valid)
+        {
+            m_Valid = valid;
         }
 
-        public static DisabledScopeBuilder Disabled(bool disabled = true)
+        public void Dispose()
         {
-            return new DisabledScopeBuilder(disabled);
-        }
-
-        public readonly struct AreaScopeBuilder : IDisposable
-        {
-            public AreaScopeBuilder(Rect area)
+            if (m_Valid)
             {
-                GUILayout.BeginArea(area);
-            }
-
-            public void Dispose()
-            {
-                GUILayout.EndArea();
-            }
-        }
-
-        public static AreaScopeBuilder Area(Rect area)
-        {
-            return new AreaScopeBuilder(area);
-        }
-
-        public readonly struct VerticalScopeBuilder : IDisposable
-        {
-            private readonly bool m_Valid;
-
-            public VerticalScopeBuilder(bool valid)
-            {
-                m_Valid = valid;
-            }
-
-            public void Dispose()
-            {
-                if (m_Valid)
-                {
-                    GUILayout.EndVertical();
-                }
-            }
-        }
-
-        public static VerticalScopeBuilder Vertical()
-        {
-            GUILayout.BeginVertical();
-            return new VerticalScopeBuilder(true);
-        }
-
-        public readonly struct HorizontalScopeBuilder : IDisposable
-        {
-            private readonly bool m_Valid;
-
-            public HorizontalScopeBuilder(bool valid)
-            {
-                m_Valid = valid;
-            }
-
-            public void Dispose()
-            {
-                if (m_Valid)
-                {
-                    GUILayout.EndHorizontal();
-                }
+                GUILayout.EndVertical();
             }
         }
+    }
 
-        public static HorizontalScopeBuilder Horizontal()
+    public static VerticalScopeBuilder Vertical()
+    {
+        GUILayout.BeginVertical();
+        return new VerticalScopeBuilder(true);
+    }
+
+    public readonly struct HorizontalScopeBuilder : IDisposable
+    {
+        private readonly bool m_Valid;
+
+        public HorizontalScopeBuilder(bool valid)
         {
-            GUILayout.BeginHorizontal();
-            return new HorizontalScopeBuilder(true);
+            m_Valid = valid;
         }
+
+        public void Dispose()
+        {
+            if (m_Valid)
+            {
+                GUILayout.EndHorizontal();
+            }
+        }
+    }
+
+    public static HorizontalScopeBuilder Horizontal()
+    {
+        GUILayout.BeginHorizontal();
+        return new HorizontalScopeBuilder(true);
     }
 }

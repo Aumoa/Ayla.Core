@@ -24,13 +24,19 @@ public static class EditorGUIScope
         }
     }
 
-    public static VerticalScopeBuilder Vertical(out Rect layoutRect)
+    public static VerticalScopeBuilder Vertical(out Rect layoutRect, params GUILayoutOption[] options)
     {
-        layoutRect = EditorGUILayout.BeginVertical();
+        layoutRect = EditorGUILayout.BeginVertical(options);
         return new VerticalScopeBuilder(true);
     }
 
-    public static VerticalScopeBuilder Vertical() => Vertical(out _);
+    public static VerticalScopeBuilder Vertical(GUIStyle style, params GUILayoutOption[] options)
+    {
+        EditorGUILayout.BeginVertical(style, options);
+        return new VerticalScopeBuilder(true);
+    }
+
+    public static VerticalScopeBuilder Vertical(params GUILayoutOption[] options) => Vertical(out _, options);
 
     public readonly struct HorizontalScopeBuilder : IDisposable
     {
