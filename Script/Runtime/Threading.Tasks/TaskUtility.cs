@@ -333,15 +333,91 @@ public static class TaskUtility
         return tcs.Task;
     }
 
-    public static async void Create(Func<ValueTask> func)
+    public static async ValueTask Create(Func<ValueTask> func)
     {
-        try
+        await func();
+    }
+
+    public static async ValueTask Create(Func<CancellationToken, ValueTask> func, CancellationToken cancellationToken)
+    {
+        await func(cancellationToken);
+    }
+
+    public static async ValueTask WhenAll<T>(T tasks) where T : IEnumerable<ValueTask>
+    {
+        Debug.Assert(ApplicationMisc.IsInMainThread());
+        using var scope1 = ListPool<Exception>.Get(out var exceptions);
+        foreach (var task in tasks)
         {
-            await func();
+            try
+            {
+                await task;
+            }
+            catch (Exception e)
+            {
+                exceptions.Add(e);
+            }
         }
-        catch (Exception e)
+
+        switch (exceptions.Count)
         {
-            Debug.LogException(e);
+            case 1:
+                throw exceptions[0];
+            case > 1:
+                throw new AggregateException(exceptions);
+        }
+    }
+
+    public static async ValueTask<T[]> WhenAll<T>(IEnumerable<ValueTask<T>> tasks)
+    {
+        Debug.Assert(ApplicationMisc.IsInMainThread());
+        using var scope1 = ListPool<T>.Get(out var results);
+        using var scope2 = ListPool<Exception>.Get(out var exceptions);
+
+        foreach (var task in tasks)
+        {
+            try
+            {
+                var result = await task;
+                results.Add(result);
+            }
+            catch (Exception e)
+            {
+                exceptions.Add(e);
+            }
+        }
+
+        return exceptions.Count switch
+        {
+            1 => throw exceptions[0],
+            > 1 => throw new AggregateException(exceptions),
+            _ => results.ToArray(),
+        };
+    }
+
+    public static async ValueTask WhenAll(params ValueTask[] tasks)
+    {
+        Debug.Assert(ApplicationMisc.IsInMainThread());
+        using var scope1 = ListPool<Exception>.Get(out var exceptions);
+
+        foreach (var task in tasks)
+        {
+            try
+            {
+                await task;
+            }
+            catch (Exception e)
+            {
+                exceptions.Add(e);
+            }
+        }
+
+        switch (exceptions.Count)
+        {
+            case 1:
+                throw exceptions[0];
+            case > 1:
+                throw new AggregateException(exceptions);
         }
     }
 }
