@@ -85,6 +85,7 @@ public class OrderedDictionaryEditor : EditorWindow
 
     private const int kButtonWidth = 18;
     private const int kScrollSize = 14;
+    private const int kLeftSelector = 14;
 
     [SerializeField]
     private Object[] m_TargetObjects = Array.Empty<Object>();
@@ -104,7 +105,7 @@ public class OrderedDictionaryEditor : EditorWindow
     private ColumnDefinition[] m_KeyColumns = Array.Empty<ColumnDefinition>();
     private ColumnDefinition[] m_ValueColumns = Array.Empty<ColumnDefinition>();
     private event Action? m_UpdateQueue;
-    private readonly HashSet<object> m_KeyCollection = new();
+    private readonly HashSet<uint> m_KeyCollection = new();
 
     private GUIContent? m_InsertHereContent;
     private GUIContent? m_AddLastContent;
@@ -219,7 +220,7 @@ public class OrderedDictionaryEditor : EditorWindow
         var bottomScroll = rect.FillBottom(kScrollSize);
 
         var rightScroll = rect.FillRight(kScrollSize);
-        rect = rect.MarginBottom(bottomScroll.height).MarginRight(kScrollSize);
+        rect = rect.MarginBottom(bottomScroll.height).MarginRight(kScrollSize).MarginLeft(kLeftSelector);
 
         var headerLayout = rect.FillTop(EditorGUIUtility.singleLineHeight);
         rect = rect.MarginTop(headerLayout.height + EditorGUIUtility.standardVerticalSpacing);
@@ -227,7 +228,7 @@ public class OrderedDictionaryEditor : EditorWindow
         rect = rect.MarginBottom(inputLayout.height);
         var rowsLayout = rect.MarginTop(EditorGUIUtility.standardVerticalSpacing);
 
-        bool keyAdd = m_KeyCollection.Add(m_CDOCopySourceKey!.boxedValue);
+        bool keyAdd = m_KeyCollection.Add(m_CDOCopySourceKey!.contentHash);
         m_KeyCollection.Clear();
 
         DrawColumns(headerLayout, toolsWidth);
@@ -265,14 +266,17 @@ public class OrderedDictionaryEditor : EditorWindow
         EditorGUI.DrawRect(rightScroll.FillLeft(1), Color.black);
     }
 
-    private void DrawRows(Rect rect, float toolsWidth, HashSet<object> keyCollection, bool keyAdd)
+    private void DrawRows(Rect rect, float toolsWidth, HashSet<uint> keyCollection, bool keyAdd)
     {
         int arraySize = m_Rows!.arraySize;
 
         var outerArea = rect;
+        rect = rect.MarginLeft(-kLeftSelector);
         using (GUIScope.Area(rect))
         {
-            rect = rect.ZeroPosition().MarginTop(-m_Scroll.y);
+            rect = rect.ZeroPosition()
+                .MarginTop(-m_Scroll.y)
+                .MarginLeft(kLeftSelector);
 
             for (int i = 0; i < arraySize; ++i)
             {
@@ -280,7 +284,7 @@ public class OrderedDictionaryEditor : EditorWindow
                 var rowRect = rect.FillTop(EditorGUIUtility.singleLineHeight);
 
                 element.Next(true);  // Key
-                if (!keyCollection.Add(element.boxedValue))
+                if (!keyCollection.Add(element.contentHash))
                 {
                     EditorGUI.DrawRect(rowRect, Color.red);
                 }
@@ -345,7 +349,7 @@ public class OrderedDictionaryEditor : EditorWindow
                 }
 
                 rect = rect.MarginTop(rowRect.height);
-                EditorGUI.DrawRect(rect.FillTop(1), Color.black);
+                EditorGUI.DrawRect(rect.FillTop(1).MarginLeft(-kLeftSelector), Color.black);
                 rect = rect.MarginTop(1);
             }
         }
@@ -373,8 +377,9 @@ public class OrderedDictionaryEditor : EditorWindow
     {
         HorizontalBorder.Draw(new DrawingArgs(rect.MarginTop(EditorGUIUtility.singleLineHeight)));
         HorizontalBorder.Draw(new DrawingArgs(rect.FillBottom(EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing + kScrollSize)));
-        VerticalBorder.Draw(new DrawingArgs(rect.MarginLeft(m_KeyColumns.Sum(c => c.Width))));
-        VerticalBorder.Draw(new DrawingArgs(rect.FillRight(toolsWidth + kScrollSize)));
+        VerticalBorder.Draw(new DrawingArgs(rect.MarginLeft(kLeftSelector)));
+        VerticalBorder.Draw(new DrawingArgs(rect.MarginLeft(kLeftSelector + m_KeyColumns.Sum(c => c.Width))));
+        VerticalBorder.Draw(new DrawingArgs(rect.MarginLeft(kLeftSelector).FillRight(toolsWidth + kScrollSize)));
     }
 
     private void DrawInputBar(Rect rect, float toolsWidth, bool keyAdd)
@@ -614,12 +619,28 @@ public class OrderedDictionaryEditor : EditorWindow
         using (EditorGUIScope.WideMode(true))
         {
             var labelContent = !p.isArray && p.hasVisibleChildren ? GUIContent.none : m_DefaultLabelContent;
-            EditorGUI.PropertyField(r.Margin(EditorGUIUtility.standardVerticalSpacing, 0), p, labelContent);
+            var fieldRect = r.Margin(EditorGUIUtility.standardVerticalSpacing, 0);
+
+            if (IsStruct(p))
+            {
+                string summaryText = EditorJsonUtility.ToJson(p.boxedValue);
+                EditorGUI.LabelField(fieldRect, labelContent, summaryText);
+            }
+            else
+            {
+                EditorGUI.PropertyField(fieldRect, p, labelContent);
+            }
+
             if (drawBorder)
             {
                 EditorGUI.DrawRect(r.FillRight(1), Color.black);
             }
         }
+    }
+
+    private static bool IsStruct(SerializedProperty p)
+    {
+        return p.propertyType is not (SerializedPropertyType.String or SerializedPropertyType.ObjectReference) && p.hasChildren;
     }
 
     private static void VisitChildren(SerializedProperty prop, Action<SerializedProperty> body)
