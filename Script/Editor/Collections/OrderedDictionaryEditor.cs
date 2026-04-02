@@ -97,6 +97,7 @@ public class OrderedDictionaryEditor : EditorWindow
     private GUIContent? m_DefaultLabelContent;
     private SerializedProperty? m_Property;
     private SerializedProperty? m_Rows;
+    private SerializedProperty? m_Selector;
     private Object? m_ClassDefaultObject;
     private SerializedProperty? m_ClassDefaultObjectProperty;
     private SerializedProperty? m_CDOCopySource;
@@ -215,6 +216,19 @@ public class OrderedDictionaryEditor : EditorWindow
         TryDeleteClassDefaultObject();
     }
 
+    private void OnFocus()
+    {
+        if (m_Property != null)
+        {
+            var serializedObject = m_Property.serializedObject;
+            if (serializedObject != null)
+            {
+                var targetObjects = serializedObject.targetObjects;
+                Selection.objects = targetObjects;
+            }
+        }
+    }
+
     private void DrawContents(Rect rect, float toolsWidth)
     {
         var bottomScroll = rect.FillBottom(kScrollSize);
@@ -269,6 +283,8 @@ public class OrderedDictionaryEditor : EditorWindow
     private void DrawRows(Rect rect, float toolsWidth, HashSet<uint> keyCollection, bool keyAdd)
     {
         int arraySize = m_Rows!.arraySize;
+        var current = Event.current;
+        int currentSelector = m_Selector!.intValue;
 
         var outerArea = rect;
         rect = rect.MarginLeft(-kLeftSelector);
@@ -282,11 +298,17 @@ public class OrderedDictionaryEditor : EditorWindow
             {
                 var element = m_Rows.GetArrayElementAtIndex(i);
                 var rowRect = rect.FillTop(EditorGUIUtility.singleLineHeight);
+                var expandedArea = rowRect.MarginLeft(-kLeftSelector);
+
+                if (i == currentSelector)
+                {
+                    EditorGUI.DrawRect(expandedArea, Color.green.WithAlpha(0.2f));
+                }
 
                 element.Next(true);  // Key
                 if (!keyCollection.Add(element.contentHash))
                 {
-                    EditorGUI.DrawRect(rowRect, Color.red);
+                    EditorGUI.DrawRect(rowRect, Color.red.WithAlpha(0.2f));
                 }
                 int index = 0;
                 VisitChildren(element, child =>
@@ -348,28 +370,34 @@ public class OrderedDictionaryEditor : EditorWindow
                     }
                 }
 
+                if (current != null)
+                {
+                    if (current.rawType == EventType.MouseDown && current.button == 0 && expandedArea.Contains(current.mousePosition))
+                    {
+                        m_Selector!.intValue = i;
+                        Repaint();
+                    }
+                }
+
                 rect = rect.MarginTop(rowRect.height);
                 EditorGUI.DrawRect(rect.FillTop(1).MarginLeft(-kLeftSelector), Color.black);
                 rect = rect.MarginTop(1);
             }
         }
 
-        var current = Event.current;
-        if (current == null)
+        if (current != null)
         {
-            return;
-        }
-
-        if (current.rawType == EventType.ScrollWheel && outerArea.Contains(current.mousePosition))
-        {
-            float scale = EditorGUIUtility.singleLineHeight * 0.5f;
-            if (current.control)
+            if (current.rawType == EventType.ScrollWheel && outerArea.Contains(current.mousePosition))
             {
-                scale *= 3.0f;
-            }
+                float scale = EditorGUIUtility.singleLineHeight * 0.5f;
+                if (current.control)
+                {
+                    scale *= 3.0f;
+                }
 
-            m_Scroll += current.delta * scale;
-            Repaint();
+                m_Scroll += current.delta * scale;
+                Repaint();
+            }
         }
     }
 
@@ -385,6 +413,14 @@ public class OrderedDictionaryEditor : EditorWindow
     private void DrawInputBar(Rect rect, float toolsWidth, bool keyAdd)
     {
         m_ClassDefaultObjectProperty!.serializedObject.Update();
+        int currentSelector = m_Selector!.intValue;
+        var expandedArea = rect.MarginLeft(-kLeftSelector);
+        var current = Event.current;
+
+        if (currentSelector == OrderedDictionary.kSelectorIndex_NewElement)
+        {
+            EditorGUI.DrawRect(expandedArea, Color.green.WithAlpha(0.2f));
+        }
 
         for (int i = 0; i < m_KeyColumns.Length; ++i)
         {
@@ -417,6 +453,15 @@ public class OrderedDictionaryEditor : EditorWindow
             if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_AddLastContent, EditorStyles.iconButton))
             {
                 InsertNewElementAt(null);
+            }
+        }
+
+        if (current != null)
+        {
+            if (current.rawType == EventType.MouseDown && current.button == 0 && expandedArea.Contains(current.mousePosition))
+            {
+                m_Selector!.intValue = OrderedDictionary.kSelectorIndex_NewElement;
+                Repaint();
             }
         }
     }
@@ -520,6 +565,8 @@ public class OrderedDictionaryEditor : EditorWindow
         {
             m_Rows = m_Property.Copy();
             m_Rows.Next(true);
+            m_Selector = m_Rows.Copy();
+            m_Selector.Next(false);
 
             var ga = propertyType.GetGenericArguments();
             var keyType = ga[0];
@@ -624,7 +671,7 @@ public class OrderedDictionaryEditor : EditorWindow
             if (IsStruct(p))
             {
                 string summaryText = EditorJsonUtility.ToJson(p.boxedValue);
-                EditorGUI.LabelField(fieldRect, labelContent, summaryText);
+                EditorGUI.LabelField(fieldRect, labelContent, EditorGUIUtility.TrTempContent(summaryText));
             }
             else
             {
