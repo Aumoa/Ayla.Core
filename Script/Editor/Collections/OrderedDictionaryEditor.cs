@@ -364,6 +364,10 @@ public class OrderedDictionaryEditor : EditorWindow
                 {
                     int ii = i;
                     m_UpdateQueue += () => m_Rows.DeleteArrayElementAtIndex(ii);
+                    if (m_Selector.intValue == i)
+                    {
+                        m_Selector.intValue = -1;
+                    }
                 }
                 toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
                 using (GUIScope.Disabled(i == 0))
@@ -372,6 +376,7 @@ public class OrderedDictionaryEditor : EditorWindow
                     {
                         int ii = i;
                         m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii - 1);
+                        m_Selector.intValue = i - 1;
                     }
                 }
                 toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
@@ -381,6 +386,7 @@ public class OrderedDictionaryEditor : EditorWindow
                     {
                         int ii = i;
                         m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii + 1);
+                        m_Selector.intValue = i + 1;
                     }
                 }
 
@@ -391,6 +397,7 @@ public class OrderedDictionaryEditor : EditorWindow
                         m_Selector!.intValue = i;
                         GUI.FocusControl("");
                         Repaint();
+                        current.Use();
                     }
                 }
 
@@ -412,6 +419,14 @@ public class OrderedDictionaryEditor : EditorWindow
 
                 m_Scroll += current.delta * scale;
                 Repaint();
+                current.Use();
+            }
+            else if (current.rawType == EventType.MouseDown && current.button == 0 && outerArea.Contains(current.mousePosition))
+            {
+                m_Selector.intValue = -1;
+                GUI.FocusControl("");
+                Repaint();
+                current.Use();
             }
         }
     }
@@ -478,6 +493,7 @@ public class OrderedDictionaryEditor : EditorWindow
                 m_Selector!.intValue = OrderedDictionary.kSelectorIndex_NewElement;
                 GUI.FocusControl("");
                 Repaint();
+                current.Use();
             }
         }
     }
@@ -553,6 +569,7 @@ public class OrderedDictionaryEditor : EditorWindow
         copyDest.InsertArrayElementAtIndex(index.Value);
         var newElement = copyDest.GetArrayElementAtIndex(index.Value);
         newElement.boxedValue = m_CDOCopySource!.boxedValue;
+        m_Selector!.intValue = index.Value;
     }
 
     public void SelectProperty(SerializedProperty property)
