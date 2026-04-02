@@ -98,7 +98,6 @@ public class OrderedDictionaryEditor : EditorWindow
     private SerializedProperty? m_Property;
     private SerializedProperty? m_Rows;
     private SerializedProperty? m_Selector;
-    private Object? m_ClassDefaultObject;
     private SerializedProperty? m_ClassDefaultObjectProperty;
     private SerializedProperty? m_CDOCopySource;
     private SerializedProperty? m_CDOCopySourceKey;
@@ -211,11 +210,6 @@ public class OrderedDictionaryEditor : EditorWindow
         }
     }
 
-    private void OnDestroy()
-    {
-        TryDeleteClassDefaultObject();
-    }
-
     private void OnFocus()
     {
         if (m_Property != null)
@@ -224,7 +218,27 @@ public class OrderedDictionaryEditor : EditorWindow
             if (serializedObject != null)
             {
                 var targetObjects = serializedObject.targetObjects;
-                Selection.objects = targetObjects;
+                using var scope1 = ListPool<GameObject>.Get(out var gameObjects);
+                foreach (var targetObject in targetObjects)
+                {
+                    if (targetObject is Component component && component.gameObject != null)
+                    {
+                        gameObjects.Add(component.gameObject);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                if (gameObjects.Count == targetObjects.Length)
+                {
+                    Selection.objects = gameObjects.ToArray();
+                }
+                else
+                {
+                    Selection.objects = targetObjects;
+                }
             }
         }
     }
@@ -375,6 +389,7 @@ public class OrderedDictionaryEditor : EditorWindow
                     if (current.rawType == EventType.MouseDown && current.button == 0 && expandedArea.Contains(current.mousePosition))
                     {
                         m_Selector!.intValue = i;
+                        GUI.FocusControl("");
                         Repaint();
                     }
                 }
@@ -461,6 +476,7 @@ public class OrderedDictionaryEditor : EditorWindow
             if (current.rawType == EventType.MouseDown && current.button == 0 && expandedArea.Contains(current.mousePosition))
             {
                 m_Selector!.intValue = OrderedDictionary.kSelectorIndex_NewElement;
+                GUI.FocusControl("");
                 Repaint();
             }
         }
@@ -549,7 +565,6 @@ public class OrderedDictionaryEditor : EditorWindow
     private void InternalSelectProperty(SerializedProperty property)
     {
         m_Property = property;
-        TryDeleteClassDefaultObject();
         if (m_Property == null)
         {
             return;
@@ -571,18 +586,7 @@ public class OrderedDictionaryEditor : EditorWindow
             var ga = propertyType.GetGenericArguments();
             var keyType = ga[0];
             var valueType = ga[1];
-            var classDefaultObjectType = GetClassDefaultType(keyType, valueType);
-            m_ClassDefaultObject = CreateInstance(classDefaultObjectType);
-            m_ClassDefaultObjectProperty = new SerializedObject(m_ClassDefaultObject).FindProperty("m_Dict");
-            m_ClassDefaultObjectProperty.Next(true);
-
-            if (m_ClassDefaultObjectProperty.arraySize != 1)
-            {
-                m_ClassDefaultObjectProperty.serializedObject.Update();
-                m_ClassDefaultObjectProperty.arraySize = 1;
-                m_ClassDefaultObjectProperty.serializedObject.ApplyModifiedPropertiesWithoutUndo();
-            }
-
+            m_ClassDefaultObjectProperty = ClassDefaultObjectBuilder.NewClassDefaultObjectProperty(keyType, valueType);
             m_CDOCopySource = m_ClassDefaultObjectProperty.GetArrayElementAtIndex(0);
             m_CDOCopySourceKey = m_CDOCopySource.Copy();
             m_CDOCopySourceKey.Next(true);
@@ -592,7 +596,6 @@ public class OrderedDictionaryEditor : EditorWindow
         {
             m_Property = null;
             m_Rows = null;
-            m_ClassDefaultObject = null;
             m_ClassDefaultObjectProperty = null;
             m_CDOCopySource = null;
             m_CDOCopySourceKey = null;
@@ -651,15 +654,6 @@ public class OrderedDictionaryEditor : EditorWindow
         }
     }
 
-    private void TryDeleteClassDefaultObject()
-    {
-        if (m_ClassDefaultObject)
-        {
-            DestroyImmediate(m_ClassDefaultObject);
-            m_ClassDefaultObject = null;
-        }
-    }
-
     private void DrawPropertyField(Rect r, SerializedProperty p, bool drawBorder)
     {
         using (EditorGUIScope.LabelWidth(EditorGUIUtility.singleLineHeight * 0.7f))
@@ -709,39 +703,6 @@ public class OrderedDictionaryEditor : EditorWindow
         {
             body(prop);
             prop.Next(false);
-        }
-    }
-
-    private static readonly ModuleBuilder s_CDOModuleBuilder;
-    private static readonly ConcurrentDictionary<(Type KeyType, Type ValueType), Type> s_CDOTypes = new();
-
-    static OrderedDictionaryEditor()
-    {
-        var assemblyName = new AssemblyName("DynamicDataTableAssembly");
-        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-        s_CDOModuleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-    }
-
-    private static Type GetClassDefaultType(Type keyType, Type valueType)
-    {
-        var pair = (keyType, valueType);
-
-        return s_CDOTypes.GetOrAdd(pair, static pair2 =>
-        {
-            string typeName = $"DynamicDataTable_{GetSafeName(pair2.KeyType.FullName)}_{GetSafeName(pair2.ValueType.FullName)}";
-            var typeBuilder = s_CDOModuleBuilder.DefineType(
-                typeName,
-                TypeAttributes.Public | TypeAttributes.Class,
-                typeof(DataTable<,>).MakeGenericType(pair2.KeyType, pair2.ValueType)
-            );
-            typeBuilder.SetCustomAttribute(ClassDefaultObjectAttribute.Builder);
-            var type = typeBuilder.CreateType();
-            return type;
-        });
-
-        static string GetSafeName(string fullName)
-        {
-            return fullName.Replace('.', '_').Replace("+", "__");
         }
     }
 }

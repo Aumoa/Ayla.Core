@@ -47,5 +47,12 @@ namespace Ayla
             SystemLanguage.Japanese => "作成",
             _ => "Create"
         };
+
+        public static string SelectorLabel => s_Language switch
+        {
+            SystemLanguage.Korean => "선택된 항목",
+            SystemLanguage.Japanese => "選択された項目",
+            _ => "Selected Item"
+        };
     }
 }
