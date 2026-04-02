@@ -243,8 +243,12 @@ public class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadO
 
     [SerializeField]
     private List<KeyValuePair> m_Rows = new();
+#if UNITY_EDITOR
+#pragma warning disable CS0414
     [SerializeField]
     private int m_Selector = -1;
+#pragma warning restore CS0414
+#endif
 
     private readonly Dictionary<TKey, int> m_Index = new();
 
