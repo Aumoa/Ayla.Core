@@ -420,4 +420,22 @@ public static class TaskUtility
                 throw new AggregateException(exceptions);
         }
     }
+
+    /// <summary>
+    /// Asynchronously waits for the specified task to complete without awaiting its result, effectively "forgetting" the task.
+    /// </summary>
+    public static async void Forget(this ValueTask task)
+    {
+        try
+        {
+            await task;
+        }
+        catch (Exception e)
+        {
+            if (e is not OperationCanceledException)
+            {
+                Debug.LogException(e);
+            }
+        }
+    }
 }
