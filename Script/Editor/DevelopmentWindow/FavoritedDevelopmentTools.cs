@@ -1,43 +1,40 @@
-﻿#nullable enable
+﻿namespace Ayla;
 
-namespace Ayla
+internal class FavoriteDevTool : DevelopmentTools
 {
-    internal class FavoriteDevTool : DevelopmentTools
+    private readonly DevelopmentTools m_Source;
+
+    public FavoriteDevTool(DevelopmentTools source)
     {
-        private readonly DevelopmentTools m_Source;
+        m_Source = source;
+    }
 
-        public FavoriteDevTool(DevelopmentTools source)
+    public override string Title => m_Source.Title;
+
+    protected override void OnGUI(in DrawingArgs drawingArgs)
+    {
+        m_Source.DoOnGUI(drawingArgs);
+    }
+
+    protected internal override string OnSerialize()
+    {
+        return m_Source.OnSerialize();
+    }
+
+    protected internal override void OnDeserialize(string value)
+    {
+        m_Source.OnDeserialize(value);
+    }
+
+    protected override string GetPrefsKey(bool useSuffix, string memberName)
+    {
+        if (useSuffix)
         {
-            m_Source = source;
+            return $"Ayla.Inspector:{m_SourceType.FullName}@Favorite.{memberName}";
         }
-
-        public override string Title => m_Source.Title;
-
-        protected internal override void OnGUI(DrawingArgs drawingArgs)
+        else
         {
-            m_Source.OnGUI(drawingArgs);
-        }
-
-        protected internal override string OnSerialize()
-        {
-            return m_Source.OnSerialize();
-        }
-
-        protected internal override void OnDeserialize(string value)
-        {
-            m_Source.OnDeserialize(value);
-        }
-
-        protected override string GetPrefsKey(bool useSuffix, string memberName)
-        {
-            if (useSuffix)
-            {
-                return $"Ayla.Inspector:{m_SourceType.FullName}@Favorite.{memberName}";
-            }
-            else
-            {
-                return $"Ayla.Inspector:{m_SourceType.FullName}.{memberName}";
-            }
+            return $"Ayla.Inspector:{m_SourceType.FullName}.{memberName}";
         }
     }
 }

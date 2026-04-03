@@ -4,71 +4,70 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
 
-namespace Ayla
+namespace Ayla;
+
+[SystemCategory, DefaultOrder(0)]
+public class SystemTools : DevelopmentTools
 {
-    [SystemCategory, DefaultOrder(0)]
-    public class SystemTools : DevelopmentTools
+    private const int kButtonWidth = 300;
+
+    private static readonly Dictionary<string, Action> s_SystemActionCompilations = new()
     {
-        private const int kButtonWidth = 300;
+        [SystemToolsText.RequestScriptCompilation] = CompilationPipeline.RequestScriptCompilation,
+        [SystemToolsText.RequestScriptReload] = EditorUtility.RequestScriptReload
+    };
 
-        private static readonly Dictionary<string, Action> s_SystemActionCompilations = new()
+    private static readonly Dictionary<string, Action> s_SystemActionAssets = new()
+    {
+        [SystemToolsText.RefreshAssetDatabase] = AssetDatabase.Refresh,
+        [SystemToolsText.SaveAllAssets] = AssetDatabase.SaveAssets
+    };
+
+    private static readonly Dictionary<string, Action> s_SystemActionsOther = new()
+    {
+        [SystemToolsText.ClearProgressBar] = EditorUtility.ClearProgressBar
+    };
+
+    public override string Title => SystemToolsText.UnityToolsTitle;
+
+    protected override void OnGUI(in DrawingArgs drawingArgs)
+    {
+        bool firstPass = true;
+
+        foreach (var dict in new[] { s_SystemActionCompilations, s_SystemActionAssets, s_SystemActionsOther })
         {
-            [SystemToolsText.RequestScriptCompilation] = CompilationPipeline.RequestScriptCompilation,
-            [SystemToolsText.RequestScriptReload] = EditorUtility.RequestScriptReload
-        };
-
-        private static readonly Dictionary<string, Action> s_SystemActionAssets = new()
-        {
-            [SystemToolsText.RefreshAssetDatabase] = AssetDatabase.Refresh,
-            [SystemToolsText.SaveAllAssets] = AssetDatabase.SaveAssets
-        };
-
-        private static readonly Dictionary<string, Action> s_SystemActionsOther = new()
-        {
-            [SystemToolsText.ClearProgressBar] = EditorUtility.ClearProgressBar
-        };
-
-        public override string Title => SystemToolsText.UnityToolsTitle;
-
-        protected internal override void OnGUI(DrawingArgs drawingArgs)
-        {
-            bool firstPass = true;
-
-            foreach (var dict in new[] { s_SystemActionCompilations, s_SystemActionAssets, s_SystemActionsOther })
+            if (firstPass)
             {
-                if (firstPass)
-                {
-                    firstPass = false;
-                }
-                else
-                {
-                    GUILayout.Space(4);
-                }
+                firstPass = false;
+            }
+            else
+            {
+                GUILayout.Space(4);
+            }
 
-                GUILayout.BeginHorizontal();
-                int widthAdvance = 0;
-                try
+            GUILayout.BeginHorizontal();
+            int widthAdvance = 0;
+            try
+            {
+                foreach (var (name, action) in dict)
                 {
-                    foreach (var (name, action) in dict)
+                    if (GUILayout.Button(name))
                     {
-                        if (GUILayout.Button(name))
-                        {
-                            action();
-                        }
+                        action();
+                    }
 
-                        widthAdvance += kButtonWidth;
-                        if (widthAdvance + kButtonWidth >= drawingArgs.DrawingRect.width)
-                        {
-                            GUILayout.EndHorizontal();
-                            GUILayout.BeginHorizontal();
-                            widthAdvance = 0;
-                        }
+                    widthAdvance += kButtonWidth;
+                    if (widthAdvance + kButtonWidth >= drawingArgs.DrawingRect.width)
+                    {
+                        GUILayout.EndHorizontal();
+                        GUILayout.BeginHorizontal();
+                        widthAdvance = 0;
                     }
                 }
-                finally
-                {
-                    GUILayout.EndHorizontal();
-                }
+            }
+            finally
+            {
+                GUILayout.EndHorizontal();
             }
         }
     }

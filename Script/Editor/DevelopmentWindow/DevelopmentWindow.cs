@@ -1,5 +1,3 @@
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -304,12 +302,12 @@ public class DevelopmentWindow : EditorWindow, ISerializationCallbackReceiver
         HorizontalBorder.Draw(drawingArgs);
         drawingArgs = drawingArgs.MarginTop(1 + ContentPadding);
 
-        using var scope1 = GUIScope.Area(drawingArgs.DrawingRect);
+        using var scope1 = GUIScope.Area(drawingArgs.DrawingRect.MarginBottom(-1));
         using var scope2 = EditorGUIScope.Vertical(out var outputRect);
 
         if (tool.IsExpanded || current.rawType == EventType.Layout)
         {
-            tool.OnGUI(drawingArgs.WithArea());
+            tool.DoOnGUI(drawingArgs.WithArea());
         }
 
         return outputRect.height + ContentPadding;
