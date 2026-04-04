@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
@@ -8,6 +7,7 @@ using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
 using UnityEngine.Pool;
+using Object = UnityEngine.Object;
 
 namespace Ayla;
 
@@ -437,5 +437,35 @@ public static class TaskUtility
                 Debug.LogException(e);
             }
         }
+    }
+
+    public static async ValueTask<T[]> WaitAsync<T>(this AsyncInstantiateOperation<T> op, CancellationToken cancellationToken = default) where T : Object
+    {
+        using (cancellationToken.Register(() => op.Cancel()))
+        {
+            return await op;
+        }
+    }
+
+    public static Task WaitAsync(this AsyncOperation op, CancellationToken cancellationToken = default)
+    {
+        TaskCompletionSource<object?> tcs = new();
+        using (cancellationToken.Register(() => tcs.TrySetCanceled()))
+        {
+            Create(async () =>
+            {
+                try
+                {
+                    await op;
+                    tcs.TrySetResult(null);
+                }
+                catch (Exception e)
+                {
+                    tcs.TrySetException(e);
+                }
+            }).Forget();
+        }
+
+        return tcs.Task;
     }
 }

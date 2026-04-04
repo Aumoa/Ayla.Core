@@ -9,6 +9,7 @@ public static class ApplicationMisc
 {
     private static int s_MainThreadId;
     private static CancellationTokenSource s_ApplicationCancellation = new();
+    private static bool s_TearingDown;
 
     public static CancellationToken ApplicationCancellationToken => s_ApplicationCancellation.Token;
 
@@ -17,12 +18,24 @@ public static class ApplicationMisc
     private static void EditorStaticAwake()
     {
         InitializeThreadId();
+        s_TearingDown = false;
+        EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+        EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+    }
+
+    private static void OnPlayModeStateChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.EnteredEditMode)
+        {
+            s_TearingDown = false;
+        }
     }
 #endif
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterAssembliesLoaded)]
     private static void StaticAwake()
     {
+        s_TearingDown = false;
         InitializeThreadId();
         CancelAndResetCancellation();
         Application.quitting += OnApplicationQuit;
@@ -64,6 +77,11 @@ public static class ApplicationMisc
         }
     }
 
+    public static bool IsInTearingDown()
+    {
+        return s_TearingDown;
+    }
+
     public static bool IsInMainThread()
     {
         return Environment.CurrentManagedThreadId == s_MainThreadId;
@@ -71,6 +89,7 @@ public static class ApplicationMisc
 
     private static void OnApplicationQuit()
     {
+        s_TearingDown = true;
         CancelAndResetCancellation();
         Application.quitting -= OnApplicationQuit;
     }
