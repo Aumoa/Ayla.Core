@@ -66,6 +66,8 @@ public readonly struct YieldAwaiter : ICriticalNotifyCompletion, INotifyCompleti
         {
             throw new AggregateException(m_Exceptions);
         }
+
+        m_CancellationToken.ThrowIfCancellationRequested();
     }
 
     /// <summary>
