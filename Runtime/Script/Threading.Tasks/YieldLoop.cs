@@ -97,7 +97,7 @@ namespace Ayla
                 body(i);
                 if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
                 {
-                    await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
+                    await TaskUtility.Yield(ExecutionTiming.Initialization, cancellationToken);
                     timer.Restart();
                 }
             }
@@ -129,7 +129,7 @@ namespace Ayla
                 results.Add(body(i));
                 if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
                 {
-                    await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
+                    await TaskUtility.Yield(ExecutionTiming.Initialization, cancellationToken);
                     timer.Restart();
                 }
             }
@@ -158,7 +158,7 @@ namespace Ayla
                 body(item);
                 if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
                 {
-                    await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
+                    await TaskUtility.Yield(ExecutionTiming.Initialization, cancellationToken);
                     timer.Restart();
                 }
             }
@@ -186,7 +186,7 @@ namespace Ayla
                 results.Add(body(item));
                 if (timer.Elapsed.TotalMilliseconds >= limitMilliseconds)
                 {
-                    await TaskUtility.Yield(PlayerLoopTiming.Initialization, cancellationToken);
+                    await TaskUtility.Yield(ExecutionTiming.Initialization, cancellationToken);
                     timer.Restart();
                 }
             }

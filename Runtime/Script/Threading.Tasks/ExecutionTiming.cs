@@ -2,7 +2,7 @@
 
 namespace Ayla
 {
-    public enum PlayerLoopTiming
+    public enum ExecutionTiming
     {
         TimeUpdate,
         Initialization,

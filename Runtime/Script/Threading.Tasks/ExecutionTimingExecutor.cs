@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Ayla
 {
-    internal static class PlayerLoopTimingExecutor<T>
+    internal static class ExecutionTimingExecutor<T>
     {
         private static readonly SpinlockConcurrentQueue<Action> s_Continuations = new();
         private static readonly List<Action> s_ExecutionBuffer = new();

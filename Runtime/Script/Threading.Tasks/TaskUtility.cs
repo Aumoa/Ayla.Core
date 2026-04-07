@@ -124,8 +124,8 @@ namespace Ayla
                     Array.Copy(oldArray, newArray, oldArray.Length);
                     newArray[oldArray.Length] = new PlayerLoopSystem
                     {
-                        type = typeof(PlayerLoopTimingExecutor<TExecutor>),
-                        updateDelegate = PlayerLoopTimingExecutor<TExecutor>.Call
+                        type = typeof(ExecutionTimingExecutor<TExecutor>),
+                        updateDelegate = ExecutionTimingExecutor<TExecutor>.Call
                     };
                     system.subSystemList = newArray;
                 }
@@ -168,18 +168,18 @@ namespace Ayla
         /// <param name="cancellationToken">An optional cancellation token that can be used to cancel the yield operation before it resumes.</param>
         /// <returns>A YieldAwaitable that represents the asynchronous operation of yielding control to the player loop.</returns>
         /// <exception cref="ArgumentException">Thrown if timing is not a valid PlayerLoopTiming value.</exception>
-        public static YieldAwaitable Yield(PlayerLoopTiming timing, CancellationToken cancellationToken = default)
+        public static YieldAwaitable Yield(ExecutionTiming timing, CancellationToken cancellationToken = default)
         {
             return timing switch
             {
-                PlayerLoopTiming.TimeUpdate => PlayerLoopTimingExecutor<TimeUpdateExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.Initialization => PlayerLoopTimingExecutor<InitializationExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.EarlyUpdate => PlayerLoopTimingExecutor<EarlyUpdateExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.FixedUpdate => PlayerLoopTimingExecutor<FixedUpdateExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.PreUpdate => PlayerLoopTimingExecutor<PreUpdateExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.Update => PlayerLoopTimingExecutor<UpdateExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.PreLateUpdate => PlayerLoopTimingExecutor<PreLateUpdateExecutor>.GetAwaitable(cancellationToken),
-                PlayerLoopTiming.PostLateUpdate => PlayerLoopTimingExecutor<PostLateUpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.TimeUpdate => ExecutionTimingExecutor<TimeUpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.Initialization => ExecutionTimingExecutor<InitializationExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.EarlyUpdate => ExecutionTimingExecutor<EarlyUpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.FixedUpdate => ExecutionTimingExecutor<FixedUpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.PreUpdate => ExecutionTimingExecutor<PreUpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.Update => ExecutionTimingExecutor<UpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.PreLateUpdate => ExecutionTimingExecutor<PreLateUpdateExecutor>.GetAwaitable(cancellationToken),
+                ExecutionTiming.PostLateUpdate => ExecutionTimingExecutor<PostLateUpdateExecutor>.GetAwaitable(cancellationToken),
                 _ => throw new ArgumentException(nameof(timing)),
             };
         }
@@ -229,18 +229,18 @@ namespace Ayla
         /// <param name="cancellationToken">A cancellation token that can be used to cancel the wait operation before the predicate returns <see
         /// langword="true"/>.</param>
         /// <returns>A task that represents the asynchronous wait operation.</returns>
-        public static WaitUntilAwaitable WaitUntil(PlayerLoopTiming timing, Func<bool> pred, CancellationToken cancellationToken = default)
+        public static WaitUntilAwaitable WaitUntil(ExecutionTiming timing, Func<bool> pred, CancellationToken cancellationToken = default)
         {
             var queue = timing switch
             {
-                PlayerLoopTiming.TimeUpdate => PlayerLoopTimingExecutor<TimeUpdateExecutor>.GetQueue(),
-                PlayerLoopTiming.Initialization => PlayerLoopTimingExecutor<InitializationExecutor>.GetQueue(),
-                PlayerLoopTiming.EarlyUpdate => PlayerLoopTimingExecutor<EarlyUpdateExecutor>.GetQueue(),
-                PlayerLoopTiming.FixedUpdate => PlayerLoopTimingExecutor<FixedUpdateExecutor>.GetQueue(),
-                PlayerLoopTiming.PreUpdate => PlayerLoopTimingExecutor<PreUpdateExecutor>.GetQueue(),
-                PlayerLoopTiming.Update => PlayerLoopTimingExecutor<UpdateExecutor>.GetQueue(),
-                PlayerLoopTiming.PreLateUpdate => PlayerLoopTimingExecutor<PreLateUpdateExecutor>.GetQueue(),
-                PlayerLoopTiming.PostLateUpdate => PlayerLoopTimingExecutor<PostLateUpdateExecutor>.GetQueue(),
+                ExecutionTiming.TimeUpdate => ExecutionTimingExecutor<TimeUpdateExecutor>.GetQueue(),
+                ExecutionTiming.Initialization => ExecutionTimingExecutor<InitializationExecutor>.GetQueue(),
+                ExecutionTiming.EarlyUpdate => ExecutionTimingExecutor<EarlyUpdateExecutor>.GetQueue(),
+                ExecutionTiming.FixedUpdate => ExecutionTimingExecutor<FixedUpdateExecutor>.GetQueue(),
+                ExecutionTiming.PreUpdate => ExecutionTimingExecutor<PreUpdateExecutor>.GetQueue(),
+                ExecutionTiming.Update => ExecutionTimingExecutor<UpdateExecutor>.GetQueue(),
+                ExecutionTiming.PreLateUpdate => ExecutionTimingExecutor<PreLateUpdateExecutor>.GetQueue(),
+                ExecutionTiming.PostLateUpdate => ExecutionTimingExecutor<PostLateUpdateExecutor>.GetQueue(),
                 _ => throw new ArgumentException(nameof(timing)),
             };
             return new WaitUntilAwaitable(pred, queue, cancellationToken);
@@ -259,7 +259,7 @@ namespace Ayla
         /// <param name="cancellationToken">A cancellation token that can be used to cancel the wait operation before the predicate evaluates to false. The
         /// default value is none.</param>
         /// <returns>A awaitable object that completes when the predicate returns false or the operation is canceled.</returns>
-        public static WaitUntilAwaitable WaitWhile(PlayerLoopTiming timing, Func<bool> pred, CancellationToken cancellationToken = default)
+        public static WaitUntilAwaitable WaitWhile(ExecutionTiming timing, Func<bool> pred, CancellationToken cancellationToken = default)
         {
             return WaitUntil(timing, () => !pred(), cancellationToken);
         }
