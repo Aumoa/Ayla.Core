@@ -121,5 +121,27 @@ namespace Ayla
         {
             return new IndentScopeBuilder(EditorGUI.indentLevel + extraIndent);
         }
+
+        public readonly struct IndentLabelWidthScopeBuilder : IDisposable
+        {
+            private readonly float m_PreviousLabelWidth;
+
+            public IndentLabelWidthScopeBuilder(float spacer)
+            {
+                m_PreviousLabelWidth = EditorGUIUtility.labelWidth;
+                EditorGUIUtility.labelWidth = m_PreviousLabelWidth - spacer;
+            }
+
+            public void Dispose()
+            {
+                EditorGUIUtility.labelWidth = m_PreviousLabelWidth;
+            }
+        }
+
+        public static IndentLabelWidthScopeBuilder IndentLabelWidth()
+        {
+            var indent = EditorGUI.IndentedRect(new Rect(0, 0, 9999, 9999));
+            return new IndentLabelWidthScopeBuilder(indent.x + EditorGUIHelper.kDefaultSpacing);
+        }
     }
 }

@@ -29,5 +29,8 @@ namespace Ayla
             return content;
         }
 #endif
+
+        // UnityEditor.EditorGUI.kDefaultSpacing = 6
+        public const float kDefaultSpacing = 6;
     }
 }
