@@ -147,56 +147,70 @@ namespace Ayla
             => targetType?.IsAssignableFrom(@this) ?? false;
 
         /// <summary>
-        /// Determines whether the current type implements the specified interface or is a constructed generic type of
-        /// the specified generic type definition.
+        /// Finds the constructed generic type or interface that matches the specified target type definition
+        /// in the current type's hierarchy.
         /// </summary>
-        /// <remarks>This method checks both direct and inherited implementations of interfaces, including
-        /// generic interfaces, as well as whether the type or any of its base types is a constructed generic type of
-        /// the specified generic type definition. If the target type is not an interface or a generic type definition,
-        /// the method falls back to checking assignability.</remarks>
-        /// <param name="this">The type to examine for implementation of the specified interface or generic type.</param>
-        /// <param name="targetType">The type representing the interface or generic type definition to check against. This parameter must not be
-        /// null.</param>
-        /// <returns>true if the current type implements the specified interface or is a constructed generic type of the
-        /// specified generic type definition; otherwise, false.</returns>
-        public static bool IsImplements(this Type @this, [NotNullWhen(true)] Type? targetType)
+        /// <remarks>
+        /// For interface targets (including generic interface definitions), this method searches
+        /// the type's implemented interfaces. For generic type definitions, it walks the base type chain.
+        /// For non-generic, non-interface targets, it falls back to an assignability check and returns
+        /// the target type itself if assignable.
+        /// </remarks>
+        /// <param name="this">The type to examine.</param>
+        /// <param name="targetType">The type representing the interface or generic type definition to search for.</param>
+        /// <returns>
+        /// The matching constructed generic type or interface if found; otherwise, <c>null</c>.
+        /// For example, calling this on <c>AssetReference&lt;GameObject&gt;</c> with target <c>AssetReference&lt;&gt;</c>
+        /// returns <c>AssetReference&lt;GameObject&gt;</c>.
+        /// </returns>
+        public static Type? FindImplementation(this Type @this, Type? targetType)
         {
             if (targetType == null)
             {
-                return false;
+                return null;
             }
 
             if (targetType.IsInterface)
             {
-                // Check if @this implements the interface (including generic interfaces)
                 foreach (var i in @this.GetInterfaces())
                 {
                     if (i == targetType || (targetType.IsGenericTypeDefinition && i.IsGenericType && i.GetGenericTypeDefinition() == targetType))
                     {
-                        return true;
+                        return i;
                     }
                 }
 
-                return false;
+                return null;
             }
             else if (targetType.IsGenericTypeDefinition)
             {
-                // Check if @this or any base type is a constructed generic of targetType
                 for (var t = @this; t != null && t != typeof(object); t = t.BaseType)
                 {
                     if (t.IsGenericType && t.GetGenericTypeDefinition() == targetType)
                     {
-                        return true;
+                        return t;
                     }
                 }
 
-                return false;
+                return null;
             }
             else
             {
-                // Fallback to assignable check
-                return @this.IsAssignableTo(targetType);
+                return @this.IsAssignableTo(targetType) ? targetType : null;
             }
+        }
+
+        /// <summary>
+        /// Determines whether the current type implements the specified interface or is a constructed generic type of
+        /// the specified generic type definition.
+        /// </summary>
+        /// <param name="this">The type to examine for implementation of the specified interface or generic type.</param>
+        /// <param name="targetType">The type representing the interface or generic type definition to check against.</param>
+        /// <returns>true if the current type implements the specified interface or is a constructed generic type of the
+        /// specified generic type definition; otherwise, false.</returns>
+        public static bool IsImplements(this Type @this, [NotNullWhen(true)] Type? targetType)
+        {
+            return @this.FindImplementation(targetType) != null;
         }
 
         /// <summary>
