@@ -242,6 +242,14 @@ namespace Ayla
             }
         }
 
+        private void OnDestroy()
+        {
+            if (m_Selector != null)
+            {
+                OrderedDictionarySelection.OnDestroy(this, m_Selector);
+            }
+        }
+
         private void DrawContents(Rect rect, float toolsWidth)
         {
             var bottomScroll = rect.FillBottom(kScrollSize);
@@ -365,7 +373,7 @@ namespace Ayla
                         m_UpdateQueue += () => m_Rows.DeleteArrayElementAtIndex(ii);
                         if (m_Selector.intValue == i)
                         {
-                            m_Selector.intValue = -1;
+                            SetSelectorIndex(-1);
                         }
                     }
                     toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
@@ -375,7 +383,7 @@ namespace Ayla
                         {
                             int ii = i;
                             m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii - 1);
-                            m_Selector.intValue = i - 1;
+                            SetSelectorIndex(i - 1);
                         }
                     }
                     toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
@@ -385,7 +393,7 @@ namespace Ayla
                         {
                             int ii = i;
                             m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii + 1);
-                            m_Selector.intValue = i + 1;
+                            SetSelectorIndex(i + 1);
                         }
                     }
 
@@ -393,7 +401,7 @@ namespace Ayla
                     {
                         if (current.rawType == EventType.MouseDown && current.button == 0 && expandedArea.Contains(current.mousePosition))
                         {
-                            m_Selector!.intValue = i;
+                            SetSelectorIndex(i);
                             GUI.FocusControl("");
                             Repaint();
                             current.Use();
@@ -422,7 +430,7 @@ namespace Ayla
                 }
                 else if (current.rawType == EventType.MouseDown && current.button == 0 && outerArea.Contains(current.mousePosition))
                 {
-                    m_Selector.intValue = -1;
+                    SetSelectorIndex(-1);
                     GUI.FocusControl("");
                     Repaint();
                     current.Use();
@@ -489,7 +497,7 @@ namespace Ayla
             {
                 if (current.rawType == EventType.MouseDown && current.button == 0 && expandedArea.Contains(current.mousePosition))
                 {
-                    m_Selector!.intValue = OrderedDictionary.kSelectorIndex_NewElement;
+                    SetSelectorIndex(OrderedDictionary.kSelectorIndex_NewElement);
                     GUI.FocusControl("");
                     Repaint();
                     current.Use();
@@ -568,7 +576,7 @@ namespace Ayla
             copyDest.InsertArrayElementAtIndex(index.Value);
             var newElement = copyDest.GetArrayElementAtIndex(index.Value);
             newElement.boxedValue = m_CDOCopySource!.boxedValue;
-            m_Selector!.intValue = index.Value;
+            SetSelectorIndex(index.Value);
         }
 
         public void SelectProperty(SerializedProperty property)
@@ -693,6 +701,13 @@ namespace Ayla
                     EditorGUI.DrawRect(r.FillRight(1), Color.black);
                 }
             }
+        }
+
+        private void SetSelectorIndex(int value)
+        {
+            ThrowHelper.ThrowIfNull(m_Selector, nameof(m_Selector));
+            OrderedDictionarySelection.Choose(this, m_Selector);
+            m_Selector.intValue = value;
         }
 
         private static bool IsStruct(SerializedProperty p)
