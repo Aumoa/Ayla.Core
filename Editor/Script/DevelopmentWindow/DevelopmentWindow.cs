@@ -158,6 +158,15 @@ namespace Ayla
             var helpBox = EditorStyles.helpBox;
             float defaultHeight = TitleLayoutHeight + helpBox.margin.vertical + helpBox.padding.vertical + BottomMargin;
             float categoryViewHeight = tools.Sum(p => p.ViewHeight + defaultHeight);
+
+            if (current.rawType == EventType.ScrollWheel && drawingArgs.DrawingRect.Contains(current.mousePosition))
+            {
+                float mp = current.control ? 2 : 1;
+                m_ScrollValue += current.delta.y * 10 * mp;
+                current.Use();
+                Repaint();
+            }
+
             var verticalScrollRect = drawingArgs.FillRight(VerticalScrollWidth);
             using (GUIScope.Disabled(drawingArgs.DrawingRect.height >= categoryViewHeight))
             {
