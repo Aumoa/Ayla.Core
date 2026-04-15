@@ -13,6 +13,8 @@ namespace Ayla
         protected override void OnGUI(in DrawingArgs drawingArgs)
         {
             DrawMarkdownSection();
+            EditorGUILayout.Space(10);
+            DrawPackagesSection();
         }
 
         private static void DrawMarkdownSection()
@@ -26,6 +28,21 @@ namespace Ayla
                 if (GUI.changed)
                 {
                     MarkdownProjectPatcher.Enabled = enabled;
+                }
+            }
+        }
+
+        private static void DrawPackagesSection()
+        {
+            EditorGUILayout.LabelField(ProjectGenerationToolsText.PackagesHeader, EditorStyles.boldLabel);
+
+            bool enabled = PackagesProjectPatcher.Enabled;
+            using (GUIScope.Changed())
+            {
+                enabled = EditorGUILayout.Toggle(ProjectGenerationToolsText.Enabled, enabled);
+                if (GUI.changed)
+                {
+                    PackagesProjectPatcher.Enabled = enabled;
                 }
             }
         }

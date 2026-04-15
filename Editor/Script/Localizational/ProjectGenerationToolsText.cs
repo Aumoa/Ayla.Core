@@ -20,6 +20,13 @@ namespace Ayla
             _ => "Markdown"
         };
 
+        public static string PackagesHeader => ApplicationMisc.EditorLanguage switch
+        {
+            SystemLanguage.Korean => "패키지",
+            SystemLanguage.Japanese => "パッケージ",
+            _ => "Packages"
+        };
+
         public static string Enabled => ApplicationMisc.EditorLanguage switch
         {
             SystemLanguage.Korean => "활성화",

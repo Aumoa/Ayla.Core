@@ -15,8 +15,8 @@ namespace Ayla
     {
         public static bool Enabled
         {
-            get => EditorPrefs.GetBool("Ayla.MarkdownProjectPatcher.Markdown.Enabled", true);
-            set => EditorPrefs.SetBool("Ayla.MarkdownProjectPatcher.Markdown.Enabled", value);
+            get => EditorPrefs.GetBool("Ayla.MarkdownProjectPatcher.Enabled", true);
+            set => EditorPrefs.SetBool("Ayla.MarkdownProjectPatcher.Enabled", value);
         }
 
         private static readonly Regex s_AssemblyDefinitionMatch = new(@"<None Include=""([\w\\.-]+).asmdef"" \/>", RegexOptions.Multiline | RegexOptions.Compiled);
