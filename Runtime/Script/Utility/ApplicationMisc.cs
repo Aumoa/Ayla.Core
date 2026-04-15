@@ -13,6 +13,10 @@ namespace Ayla
         private static CancellationTokenSource s_ApplicationCancellation = new();
         private static bool s_TearingDown;
 
+#if UNITY_EDITOR
+        private static SystemLanguage s_Language;
+#endif
+
         public static CancellationToken ApplicationCancellationToken => s_ApplicationCancellation.Token;
 
 #if UNITY_EDITOR
@@ -23,13 +27,17 @@ namespace Ayla
             s_TearingDown = false;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            s_Language = Application.systemLanguage;
         }
+
+        public static SystemLanguage EditorLanguage => s_Language;
 
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
         {
             if (state == PlayModeStateChange.EnteredEditMode)
             {
                 s_TearingDown = false;
+                s_Language = Application.systemLanguage;
             }
         }
 #endif

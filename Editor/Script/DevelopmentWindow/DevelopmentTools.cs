@@ -135,11 +135,12 @@ namespace Ayla
 
         protected internal virtual string OnSerialize()
         {
-            return string.Empty;
+            return EditorJsonUtility.ToJson(this);
         }
 
         protected internal virtual void OnDeserialize(string value)
         {
+            EditorJsonUtility.FromJsonOverwrite(value, this);
         }
 
         public string GetPrefsKey(string memberName) => GetPrefsKey(false, memberName);
