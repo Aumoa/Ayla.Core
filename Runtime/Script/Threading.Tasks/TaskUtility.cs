@@ -335,14 +335,24 @@ namespace Ayla
             return tcs.Task;
         }
 
-        public static async ValueTask Create(Func<ValueTask> func)
+        public static ValueTask Create(Func<ValueTask> func)
         {
-            await func();
+            return func();
         }
 
-        public static async ValueTask Create(Func<CancellationToken, ValueTask> func, CancellationToken cancellationToken)
+        public static ValueTask<T> Create<T>(Func<ValueTask<T>> func)
         {
-            await func(cancellationToken);
+            return func();
+        }
+
+        public static ValueTask Create(Func<CancellationToken, ValueTask> func, CancellationToken cancellationToken)
+        {
+            return func(cancellationToken);
+        }
+
+        public static ValueTask<T> Create<T>(Func<CancellationToken, ValueTask<T>> func, CancellationToken cancellationToken)
+        {
+            return func(cancellationToken);
         }
 
         public static async ValueTask WhenAll<T>(T tasks) where T : IEnumerable<ValueTask>
