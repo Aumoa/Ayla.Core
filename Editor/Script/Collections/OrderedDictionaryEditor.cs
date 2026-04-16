@@ -103,7 +103,7 @@ namespace Ayla
 
         private ColumnDefinition[] m_KeyColumns = Array.Empty<ColumnDefinition>();
         private ColumnDefinition[] m_ValueColumns = Array.Empty<ColumnDefinition>();
-        private event Action? m_UpdateQueue;
+        private event Action? UpdateQueue;
         private readonly HashSet<uint> m_KeyCollection = new();
 
         private GUIContent? m_InsertHereContent;
@@ -174,8 +174,8 @@ namespace Ayla
             DrawContents(layout, toolsWidth);
             DrawMainBorders(layout, toolsWidth);
 
-            m_UpdateQueue?.Invoke();
-            m_UpdateQueue = null;
+            UpdateQueue?.Invoke();
+            UpdateQueue = null;
 
             m_Property.serializedObject.ApplyModifiedProperties();
 
@@ -363,14 +363,14 @@ namespace Ayla
                         if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_InsertHereContent, EditorStyles.iconButton))
                         {
                             int ii = i;
-                            m_UpdateQueue += () => InsertNewElementAt(ii);
+                            UpdateQueue += () => InsertNewElementAt(ii);
                         }
                     }
                     toolbarRect = toolbarRect.MarginLeft(kButtonWidth + EditorGUIUtility.standardVerticalSpacing);
                     if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_RemoveContent, EditorStyles.iconButton))
                     {
                         int ii = i;
-                        m_UpdateQueue += () => m_Rows.DeleteArrayElementAtIndex(ii);
+                        UpdateQueue += () => m_Rows.DeleteArrayElementAtIndex(ii);
                         if (m_Selector.intValue == i)
                         {
                             SetSelectorIndex(-1);
@@ -382,7 +382,7 @@ namespace Ayla
                         if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_MoveUpContent, EditorStyles.iconButton))
                         {
                             int ii = i;
-                            m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii - 1);
+                            UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii - 1);
                             SetSelectorIndex(i - 1);
                         }
                     }
@@ -392,7 +392,7 @@ namespace Ayla
                         if (GUI.Button(toolbarRect.FillLeft(kButtonWidth), m_MoveDownContent, EditorStyles.iconButton))
                         {
                             int ii = i;
-                            m_UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii + 1);
+                            UpdateQueue += () => m_Rows.MoveArrayElement(ii, ii + 1);
                             SetSelectorIndex(i + 1);
                         }
                     }
