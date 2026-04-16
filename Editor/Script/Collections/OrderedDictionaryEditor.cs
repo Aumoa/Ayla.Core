@@ -686,7 +686,7 @@ namespace Ayla
                 var labelContent = !p.isArray && p.hasVisibleChildren ? GUIContent.none : m_DefaultLabelContent;
                 var fieldRect = r.Margin(EditorGUIUtility.standardVerticalSpacing, 0);
 
-                if (IsStruct(p))
+                if (IsStruct(p) && EditorGUI.GetPropertyHeight(p, true) > EditorGUIUtility.singleLineHeight)
                 {
                     string summaryText = EditorJsonUtility.ToJson(p.boxedValue);
                     EditorGUI.LabelField(fieldRect, labelContent, EditorGUIUtility.TrTempContent(summaryText));
