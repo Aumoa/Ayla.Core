@@ -1,6 +1,4 @@
-﻿#nullable enable
-
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -47,7 +45,7 @@ namespace Ayla
 
             public readonly KeyValuePair<TKey, TValue> Current => m_List[m_Index];
 
-            readonly object? IEnumerator.Current => Current;
+            readonly object IEnumerator.Current => Current;
 
             public readonly void Dispose()
             {
@@ -79,7 +77,7 @@ namespace Ayla
 
                 public readonly TKey Current => m_Rows[m_Index].Key;
 
-                readonly object? IEnumerator.Current => Current;
+                readonly object IEnumerator.Current => Current;
 
                 public readonly void Dispose()
                 {
@@ -169,7 +167,7 @@ namespace Ayla
 
                 public readonly TValue Current => m_Rows[m_Index].Value;
 
-                readonly object? IEnumerator.Current => Current;
+                readonly object IEnumerator.Current => Current;
 
                 public readonly void Dispose()
                 {
@@ -261,8 +259,7 @@ namespace Ayla
             {
                 if (m_Index.TryGetValue(key, out int index))
                 {
-                    var kv = m_Rows[index];
-                    kv = new KeyValuePair(key, value);
+                    var kv = new KeyValuePair(key, value);
                     m_Rows[index] = kv;
                 }
                 else
@@ -408,7 +405,17 @@ namespace Ayla
             return false;
         }
 
-        public bool TryGetValue(TKey key, out TValue value) => TryGetValue(key, out value);
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+        {
+            if (m_Index.TryGetValue(key, out int index))
+            {
+                value = m_Rows[index].Value;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
