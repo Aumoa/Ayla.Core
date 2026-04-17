@@ -686,7 +686,7 @@ namespace Ayla
                 var labelContent = !p.isArray && p.hasVisibleChildren ? GUIContent.none : m_DefaultLabelContent;
                 var fieldRect = r.Margin(EditorGUIUtility.standardVerticalSpacing, 0);
 
-                if (IsStruct(p) && EditorGUI.GetPropertyHeight(p, true) > EditorGUIUtility.singleLineHeight)
+                if (IsStruct(p))
                 {
                     string summaryText = EditorJsonUtility.ToJson(p.boxedValue);
                     EditorGUI.LabelField(fieldRect, labelContent, EditorGUIUtility.TrTempContent(summaryText));
@@ -712,12 +712,14 @@ namespace Ayla
 
         private static bool IsStruct(SerializedProperty p)
         {
-            return p.propertyType is not (SerializedPropertyType.String or SerializedPropertyType.ObjectReference) && p.hasChildren;
+            return p.propertyType is not (SerializedPropertyType.String or SerializedPropertyType.ObjectReference)
+                && p.hasChildren
+                && EditorGUI.GetPropertyHeight(p, true) > EditorGUIUtility.singleLineHeight;
         }
 
         private static void VisitChildren(SerializedProperty prop, Action<SerializedProperty> body)
         {
-            if (prop.hasChildren && !prop.isArray)
+            if (IsStruct(prop))
             {
                 int depth = prop.depth;
                 prop.Next(true);
