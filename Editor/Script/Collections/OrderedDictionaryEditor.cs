@@ -693,6 +693,7 @@ namespace Ayla
                 }
                 else
                 {
+                    p.isExpanded = true;
                     EditorGUI.PropertyField(fieldRect, p, labelContent);
                 }
 
