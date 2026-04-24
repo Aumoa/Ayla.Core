@@ -715,7 +715,27 @@ namespace Ayla
         {
             return p.propertyType is not (SerializedPropertyType.String or SerializedPropertyType.ObjectReference)
                 && p.hasChildren
-                && EditorGUI.GetPropertyHeight(p, true) > EditorGUIUtility.singleLineHeight;
+                && GetPropertyHeightForceExpanded(p) > EditorGUIUtility.singleLineHeight;
+        }
+
+        private static float GetPropertyHeightForceExpanded(SerializedProperty p)
+        {
+            if (p.isExpanded == false)
+            {
+                p.isExpanded = true;
+                try
+                {
+                    return EditorGUI.GetPropertyHeight(p);
+                }
+                finally
+                {
+                    p.isExpanded = false;
+                }
+            }
+            else
+            {
+                return EditorGUI.GetPropertyHeight(p);
+            }
         }
 
         private static void VisitChildren(SerializedProperty prop, Action<SerializedProperty> body)

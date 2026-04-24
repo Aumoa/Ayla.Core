@@ -15,7 +15,7 @@ namespace Ayla
     public class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>, ISerializationCallbackReceiver
     {
         [Serializable]
-        private struct KeyValuePair
+        public struct KeyValuePair
         {
             public TKey Key;
             public TValue Value;
@@ -156,10 +156,10 @@ namespace Ayla
         {
             public struct Enumerator : IEnumerator<TValue>
             {
-                private readonly List<KeyValuePair<TKey, TValue>> m_Rows;
+                private readonly List<KeyValuePair> m_Rows;
                 private int m_Index;
 
-                public Enumerator(List<KeyValuePair<TKey, TValue>> rows)
+                public Enumerator(List<KeyValuePair> rows)
                 {
                     m_Rows = rows;
                     m_Index = -1;
@@ -184,9 +184,9 @@ namespace Ayla
                 }
             }
 
-            private readonly List<KeyValuePair<TKey, TValue>> m_Rows;
+            private readonly List<KeyValuePair> m_Rows;
 
-            public ValueCollection(List<KeyValuePair<TKey, TValue>> list)
+            public ValueCollection(List<KeyValuePair> list)
             {
                 m_Rows = list;
             }
@@ -270,13 +270,17 @@ namespace Ayla
             }
         }
 
-        public ICollection<TKey> Keys => m_Index.Keys;
+        public Dictionary<TKey, int>.KeyCollection Keys => m_Index.Keys;
 
-        public ICollection<TValue> Values => throw new NotImplementedException();
+        ICollection<TKey> IDictionary<TKey, TValue>.Keys => Keys;
 
-        public int Count => throw new NotImplementedException();
+        public ValueCollection Values => new(m_Rows);
 
-        public bool IsReadOnly => throw new NotImplementedException();
+        ICollection<TValue> IDictionary<TKey, TValue>.Values => Values;
+
+        public int Count => m_Rows.Count;
+
+        public bool IsReadOnly => false;
 
         IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Keys;
 
