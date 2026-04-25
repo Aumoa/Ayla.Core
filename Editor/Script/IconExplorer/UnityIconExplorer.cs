@@ -54,11 +54,20 @@ namespace Ayla
                 GUILayout.FlexibleSpace();
                 GUILayout.BeginHorizontal();
                 GUILayout.FlexibleSpace();
-                GUILayout.Label("Loading Unity Icons...", EditorStyles.boldLabel);
+                using (GUIScope.Vertical())
+                {
+                    GUILayout.Label("Loading Unity Icons...", EditorStyles.boldLabel);
+                    var cr = EditorGUILayout.GetControlRect();
+                    EditorGUI.DrawRect(cr, Color.white);
+                    var a = cr;
+                    a.width = cr.width * (float)UnityIconCollection.Progress;
+                    EditorGUI.DrawRect(a, Color.aquamarine);
+                }
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
                 GUILayout.FlexibleSpace();
                 GUILayout.EndVertical();
+                Repaint();
                 return;
             }
 
