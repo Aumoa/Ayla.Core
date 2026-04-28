@@ -80,7 +80,7 @@ namespace Ayla
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Equals<T>(T? v1, T? v2, string message)
         {
-            if (!(v1?.Equals(v2) == true))
+            if (!((v1?.Equals(v2) ?? v1 is null) == true))
             {
                 Fail(message);
             }
@@ -90,7 +90,7 @@ namespace Ayla
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Equals<T>(T? v1, T? v2)
         {
-            if (!(v1?.Equals(v2) == true))
+            if (!((v1?.Equals(v2) ?? v1 is null) == true))
             {
                 Fail($"Expected {v1} to equal {v2}.");
             }
@@ -100,7 +100,7 @@ namespace Ayla
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void NotEquals<T>(T? v1, T? v2, string message)
         {
-            if (v1?.Equals(v2) == true)
+            if ((v1?.Equals(v2) ?? v2 is null) == true)
             {
                 Fail(message);
             }
@@ -110,7 +110,7 @@ namespace Ayla
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void NotEquals<T>(T? v1, T? v2)
         {
-            if (v1?.Equals(v2) == true)
+            if (v1?.Equals(v2) ?? v2 is null == true)
             {
                 Fail($"Expected {v1} to not equal {v2}.");
             }
