@@ -95,48 +95,32 @@ namespace Ayla
         /// <param name="continuation">The action to execute when the operation has finished. This action is not invoked if the operation is canceled.</param>
         public void UnsafeOnCompleted(Action continuation)
         {
+            var closureCancellationToken = m_CancellationToken;
+            var closureExceptions = m_Exceptions;
+
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                var closureCancellationToken = m_CancellationToken;
-                var closureExceptions = m_Exceptions;
-                EditorApplication.delayCall += () =>
-                {
-                    try
-                    {
-                        closureCancellationToken.ThrowIfCancellationRequested();
-                        continuation();
-                    }
-                    catch (Exception e)
-                    {
-                        closureExceptions.Add(e);
-                    }
-                };
+                EditorApplication.delayCall += ExecuteContinuation;
 
                 return;
             }
 #endif
 
-            if (m_CancellationToken.CanBeCanceled)
+            m_Continuations.Add(ExecuteContinuation);
+            return;
+
+            void ExecuteContinuation()
             {
-                var closureCancellationToken = m_CancellationToken;
-                var closureExceptions = m_Exceptions;
-                m_Continuations.Add(() =>
+                try
                 {
-                    try
-                    {
-                        closureCancellationToken.ThrowIfCancellationRequested();
-                        continuation();
-                    }
-                    catch (Exception e)
-                    {
-                        closureExceptions.Add(e);
-                    }
-                });
-            }
-            else
-            {
-                m_Continuations.Add(continuation);
+                    closureCancellationToken.ThrowIfCancellationRequested();
+                    continuation();
+                }
+                catch (Exception e)
+                {
+                    closureExceptions.Add(e);
+                }
             }
         }
     }
