@@ -15,21 +15,16 @@ namespace Ayla
         {
             s_Continuations.CopyTo(s_ExecutionBuffer);
 
-            int executions = 0;
             try
             {
                 foreach (var execution in s_ExecutionBuffer)
                 {
-                    ++executions;
                     execution();
                 }
             }
-            catch (OperationCanceledException)
-            {
-            }
             finally
             {
-                s_ExecutionBuffer.RemoveRange(0, executions);
+                s_ExecutionBuffer.Clear();
             }
         }
 

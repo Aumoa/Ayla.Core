@@ -1,7 +1,6 @@
 ﻿#nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using UnityEditor;
@@ -14,51 +13,42 @@ namespace Ayla
         private readonly Func<bool> m_Predicate;
         private readonly SpinlockConcurrentQueue<Action> m_Continuations;
         private readonly CancellationToken m_CancellationToken;
-        private readonly List<Exception> m_Exceptions;
+        private readonly AwaiterExceptionHolder m_ExceptionHolder;
 
         internal WaitUntilAwaiter(Func<bool> pred, SpinlockConcurrentQueue<Action> continuations, CancellationToken cancellationToken)
         {
             m_Predicate = pred;
             m_Continuations = continuations;
             m_CancellationToken = cancellationToken;
-            m_Exceptions = new List<Exception>();
-        }
-
-        public bool IsCompleted
-        {
-            get
+            if (ApplicationMisc.IsInMainThread())
             {
-                if (m_CancellationToken.IsCancellationRequested)
-                {
-                    return true;
-                }
-
-                return false;
+                m_ExceptionHolder = AwaiterExceptionHolder.Get();
+            }
+            else
+            {
+                m_ExceptionHolder = new AwaiterExceptionHolder();
             }
         }
+
+        public bool IsCompleted => m_CancellationToken.IsCancellationRequested;
 
         public void GetResult()
         {
+            var capture = m_ExceptionHolder.ConsumeCapture();
+            if (m_ExceptionHolder.IsPooled)
+            {
+                Asserts.True(ApplicationMisc.IsInMainThread());
+                AwaiterExceptionHolder.Release(m_ExceptionHolder);
+            }
             m_CancellationToken.ThrowIfCancellationRequested();
-
-            if (m_Exceptions.Count == 1)
-            {
-                throw m_Exceptions[0];
-            }
-            else if (m_Exceptions.Count > 1)
-            {
-                throw new AggregateException(m_Exceptions);
-            }
+            capture?.Throw();
         }
 
-        public void OnCompleted(Action continuation)
-        {
-            UnsafeOnCompleted(continuation);
-        }
+        public void OnCompleted(Action continuation) => UnsafeOnCompleted(continuation);
 
         public void UnsafeOnCompleted(Action continuation)
         {
-            if (IsCompleted)
+            if (m_CancellationToken.IsCancellationRequested)
             {
                 continuation();
                 return;
@@ -67,92 +57,85 @@ namespace Ayla
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                var closureCancellationToken = m_CancellationToken;
-                var closurePredicate = m_Predicate;
-                var closureExceptions = m_Exceptions;
-                var closureContinuations = m_Continuations;
-                EditorApplication.delayCall += () =>
+                var pred = m_Predicate;
+                var exceptionHolder = m_ExceptionHolder;
+                var token = m_CancellationToken;
+
+                void Call()
                 {
+                    if (token.IsCancellationRequested)
+                    {
+                        continuation();
+                        return;
+                    }
+
+                    bool result;
                     try
                     {
-                        closureCancellationToken.ThrowIfCancellationRequested();
-                        if (closurePredicate())
-                        {
-                            continuation();
-                        }
-                        else
-                        {
-                            // Predicate is still false, re-queue for next frame
-                            var nextAwaiter = new WaitUntilAwaiter(closurePredicate, closureContinuations, closureCancellationToken);
-                            nextAwaiter.UnsafeOnCompleted(continuation);
-                        }
+                        result = pred();
                     }
-                    catch (Exception e)
+                    catch (Exception ex)
                     {
-                        closureExceptions.Add(e);
+                        exceptionHolder.Capture(ex);
+                        continuation();
+                        return;
                     }
-                };
 
+                    if (result)
+                    {
+                        continuation();
+                    }
+                    else
+                    {
+                        EditorApplication.delayCall += () => Call();
+                    }
+                }
+
+                EditorApplication.delayCall += () => Call();
                 return;
             }
 #endif
 
-            if (m_CancellationToken.CanBeCanceled)
             {
-                var closureCancellationToken = m_CancellationToken;
-                var closurePredicate = m_Predicate;
-                var closureExceptions = m_Exceptions;
-                var closureContinuations = m_Continuations;
-                m_Continuations.Add(() =>
+                var pred = m_Predicate;
+                var continuations = m_Continuations;
+                var exceptionHolder = m_ExceptionHolder;
+                var token = m_CancellationToken;
+
+#pragma warning disable IDE0039
+                Action? call = null;
+#pragma warning restore IDE0039
+                call = () =>
                 {
+                    if (token.IsCancellationRequested)
+                    {
+                        continuation();
+                        return;
+                    }
+
+                    bool result;
                     try
                     {
-                        closureCancellationToken.ThrowIfCancellationRequested();
-                        if (closurePredicate())
-                        {
-                            continuation();
-                        }
-                        else
-                        {
-                            // Predicate is still false, re-queue for next frame
-                            var nextAwaiter = new WaitUntilAwaiter(closurePredicate, closureContinuations, closureCancellationToken);
-                            nextAwaiter.UnsafeOnCompleted(continuation);
-                        }
+                        result = pred();
                     }
                     catch (Exception ex)
                     {
-                        closureExceptions.Add(ex);
+                        exceptionHolder.Capture(ex);
+                        continuation();
+                        return;
+                    }
+
+                    if (result)
+                    {
                         continuation();
                     }
-                });
-            }
-            else
-            {
-                var closureCancellationToken = m_CancellationToken;
-                var closurePredicate = m_Predicate;
-                var closureExceptions = m_Exceptions;
-                var closureContinuations = m_Continuations;
-                m_Continuations.Add(() =>
-                {
-                    try
+                    else
                     {
-                        if (closurePredicate())
-                        {
-                            continuation();
-                        }
-                        else
-                        {
-                            // Predicate is still false, re-queue for next frame
-                            var nextAwaiter = new WaitUntilAwaiter(closurePredicate, closureContinuations, closureCancellationToken);
-                            nextAwaiter.UnsafeOnCompleted(continuation);
-                        }
+                        continuations.Add(call!);
                     }
-                    catch (Exception ex)
-                    {
-                        closureExceptions.Add(ex);
-                        continuation();
-                    }
-                });
+                };
+
+                continuations.Add(call);
             }
         }
     }

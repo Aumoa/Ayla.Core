@@ -36,7 +36,7 @@ namespace Ayla
         internal readonly struct PreUpdateExecutor
         {
         }
-    
+
         internal readonly struct UpdateExecutor
         {
         }
