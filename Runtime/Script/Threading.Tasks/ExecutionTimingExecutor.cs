@@ -1,40 +1,54 @@
 ﻿#nullable enable
 
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Ayla
 {
     internal static class ExecutionTimingExecutor<T>
     {
-        private static readonly SpinlockConcurrentQueue<Action> s_Continuations = new();
-        private static readonly List<Action> s_ExecutionBuffer = new();
+        private static readonly SpinlockConcurrentQueue<YieldAction> s_Continuations = new();
+        private static readonly List<YieldAction> s_ExecutionBuffer = new();
+        private static readonly Stopwatch s_Stopwatch = Stopwatch.StartNew();
 
         internal static void Call()
         {
-            s_Continuations.CopyTo(s_ExecutionBuffer);
+            var time = s_Stopwatch.Elapsed;
+            s_Continuations.CopyToAndClear(s_ExecutionBuffer);
 
             try
             {
-                YieldExecutor.Call();
+                YieldExecutor.Call(s_Stopwatch);
 
-                foreach (var execution in s_ExecutionBuffer)
+                for (int i = 0; i < s_ExecutionBuffer.Count; i++)
                 {
-                    execution();
+                    var execution = s_ExecutionBuffer[i];
+                    if (execution.TimeSlicing.HasValue == false || s_Stopwatch.Elapsed.TotalMilliseconds <= execution.TimeSlicing.Value)
+                    {
+                        execution.Work();
+                        s_ExecutionBuffer.RemoveAt(i);
+                        i--;
+                    }
                 }
+
+                var deltaTime = s_Stopwatch.Elapsed - time;
+
+                // Restart the stopwatch at the end to accurately measure the actual elapsed time for the next frame.
+                s_Stopwatch.Restart();
             }
             finally
             {
+                s_Continuations.AddRangeFirst(s_ExecutionBuffer);
                 s_ExecutionBuffer.Clear();
             }
         }
 
         public static YieldAwaitable GetAwaitable(CancellationToken cancellationToken = default)
         {
-            return new YieldAwaitable(s_Continuations, cancellationToken);
+            return new YieldAwaitable(s_Continuations, null, cancellationToken);
         }
 
-        public static SpinlockConcurrentQueue<Action> GetQueue() => s_Continuations;
+        public static SpinlockConcurrentQueue<YieldAction> GetQueue() => s_Continuations;
     }
 }

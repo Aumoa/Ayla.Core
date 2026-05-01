@@ -197,7 +197,7 @@ namespace Ayla
         /// <returns>A task that represents the asynchronous wait operation.</returns>
         public static WaitUntilAwaitable WaitUntil(Func<bool> pred, CancellationToken cancellationToken = default)
         {
-            return new WaitUntilAwaitable(pred, YieldExecutor.GetQueue(), cancellationToken);
+            return new WaitUntilAwaitable(pred, YieldExecutor.GetQueue(), null, cancellationToken);
         }
 
         /// <summary>
@@ -243,7 +243,7 @@ namespace Ayla
                 ExecutionTiming.PostLateUpdate => ExecutionTimingExecutor<PostLateUpdateExecutor>.GetQueue(),
                 _ => throw new ArgumentException(nameof(timing)),
             };
-            return new WaitUntilAwaitable(pred, queue, cancellationToken);
+            return new WaitUntilAwaitable(pred, queue, null, cancellationToken);
         }
 
         /// <summary>

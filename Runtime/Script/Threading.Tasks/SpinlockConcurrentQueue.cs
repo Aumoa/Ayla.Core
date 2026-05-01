@@ -26,8 +26,25 @@ namespace Ayla
             }
         }
 
+        public int Count => m_Items.Count;
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CopyTo(List<T> outputBuffer)
+        public void AddRangeFirst<U>(U items) where U : IEnumerable<T>
+        {
+            bool lockTaken = false;
+            m_Lock.Enter(ref lockTaken);
+            try
+            {
+                m_Items.InsertRange(0, items);
+            }
+            finally
+            {
+                m_Lock.Exit(useMemoryBarrier: false);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CopyToAndClear(List<T> outputBuffer)
         {
             bool lockTaken = false;
             m_Lock.Enter(ref lockTaken);

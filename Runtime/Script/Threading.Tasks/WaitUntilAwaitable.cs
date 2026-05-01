@@ -15,13 +15,15 @@ namespace Ayla
     public readonly struct WaitUntilAwaitable
     {
         private readonly Func<bool> m_Predicate;
-        private readonly SpinlockConcurrentQueue<Action> m_Continuations;
+        private readonly SpinlockConcurrentQueue<YieldAction> m_Continuations;
+        private readonly double? m_TimeSlicing;
         private readonly CancellationToken m_CancellationToken;
 
-        internal WaitUntilAwaitable(Func<bool> pred, SpinlockConcurrentQueue<Action> continuations, CancellationToken cancellationToken)
+        internal WaitUntilAwaitable(Func<bool> pred, SpinlockConcurrentQueue<YieldAction> continuations, double? timeSlicing, CancellationToken cancellationToken)
         {
             m_Predicate = pred;
             m_Continuations = continuations;
+            m_TimeSlicing = timeSlicing;
             m_CancellationToken = cancellationToken;
         }
 
@@ -36,7 +38,17 @@ namespace Ayla
         /// predicate.</returns>
         public WaitUntilAwaiter GetAwaiter()
         {
-            return new WaitUntilAwaiter(m_Predicate, m_Continuations, m_CancellationToken);
+            return new WaitUntilAwaiter(m_Predicate, m_Continuations, m_TimeSlicing, m_CancellationToken);
+        }
+
+        /// <summary>
+        /// Configures the awaitable with the specified time slicing behavior.
+        /// </summary>
+        /// <param name="timeSlicing"> A value indicating the time slicing duration for the continuation. </param>
+        /// <returns> A configured <see cref="WaitUntilAwaitable"/> instance. </returns>
+        public WaitUntilAwaitable ConfigureAwait(double? timeSlicing = null)
+        {
+            return new WaitUntilAwaitable(m_Predicate, m_Continuations, timeSlicing, m_CancellationToken);
         }
     }
 }

@@ -15,12 +15,14 @@ namespace Ayla
     /// particularly useful in custom task schedulers or advanced asynchronous frameworks.</remarks>
     public readonly struct YieldAwaitable
     {
-        private readonly SpinlockConcurrentQueue<Action> m_Continuations;
+        private readonly SpinlockConcurrentQueue<YieldAction> m_Continuations;
+        private readonly double? m_TimeSlicing;
         private readonly CancellationToken m_CancellationToken;
 
-        internal YieldAwaitable(SpinlockConcurrentQueue<Action> continuations, CancellationToken cancellationToken)
+        internal YieldAwaitable(SpinlockConcurrentQueue<YieldAction> continuations, double? timeSlicing = null, CancellationToken cancellationToken = default)
         {
             m_Continuations = continuations;
+            m_TimeSlicing = timeSlicing;
             m_CancellationToken = cancellationToken;
         }
 
@@ -33,7 +35,17 @@ namespace Ayla
         /// <returns>A YieldAwaiter instance that can be used to await the completion of the operation.</returns>
         public YieldAwaiter GetAwaiter()
         {
-            return new YieldAwaiter(m_Continuations, m_CancellationToken);
+            return new YieldAwaiter(m_Continuations, m_TimeSlicing, m_CancellationToken);
+        }
+
+        /// <summary>
+        /// Configures the awaitable with the specified time slicing behavior.
+        /// </summary>
+        /// <param name="timeSlicing"> A value indicating the time slicing duration for the continuation. </param>
+        /// <returns> A configured <see cref="YieldAwaitable"/> instance. </returns>
+        public YieldAwaitable ConfigureAwait(double? timeSlicing = null)
+        {
+            return new YieldAwaitable(m_Continuations, timeSlicing, m_CancellationToken);
         }
     }
 }

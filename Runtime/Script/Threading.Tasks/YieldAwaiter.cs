@@ -14,14 +14,16 @@ namespace Ayla
     /// <remarks>Use this awaiter to suspend an asynchronous method and resume it on the next player loop iteration.
     /// Cancellation is observed synchronously via <see cref="GetResult"/>. It implements both standard and critical
     /// notification completion interfaces, enabling integration with the async/await pattern.</remarks>
-    public readonly struct YieldAwaiter : ICriticalNotifyCompletion, INotifyCompletion
+    public readonly struct YieldAwaiter : ICriticalNotifyCompletion, INotifyCompletion, IYieldAwaiter
     {
-        private readonly SpinlockConcurrentQueue<Action> m_Continuations;
+        private readonly SpinlockConcurrentQueue<YieldAction> m_Continuations;
+        private readonly double? m_TimeSlicing;
         private readonly CancellationToken m_CancellationToken;
 
-        internal YieldAwaiter(SpinlockConcurrentQueue<Action> continuations, CancellationToken cancellationToken)
+        internal YieldAwaiter(SpinlockConcurrentQueue<YieldAction> continuations, double? timeSlicing, CancellationToken cancellationToken)
         {
             m_Continuations = continuations;
+            m_TimeSlicing = timeSlicing;
             m_CancellationToken = cancellationToken;
         }
 
@@ -40,6 +42,11 @@ namespace Ayla
                 return false;
             }
         }
+
+        /// <summary>
+        /// Gets the time slicing value.
+        /// </summary>
+        public double? TimeSlicing => m_TimeSlicing;
 
         /// <summary>
         /// Completes the await operation, throwing if cancellation was requested.
@@ -76,7 +83,7 @@ namespace Ayla
             }
 #endif
 
-            m_Continuations.Add(continuation);
+            m_Continuations.Add(new YieldAction(continuation, m_TimeSlicing));
         }
     }
 }
