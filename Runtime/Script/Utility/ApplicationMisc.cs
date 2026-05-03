@@ -15,6 +15,7 @@ namespace Ayla
 
 #if UNITY_EDITOR
         private static SystemLanguage s_Language;
+        private static bool s_DomainReloading;
 #endif
 
         public static CancellationToken ApplicationCancellationToken => s_ApplicationCancellation.Token;
@@ -28,6 +29,7 @@ namespace Ayla
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             s_Language = Application.systemLanguage;
+            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
         }
 
         public static SystemLanguage EditorLanguage => s_Language;
@@ -39,6 +41,11 @@ namespace Ayla
                 s_TearingDown = false;
                 s_Language = Application.systemLanguage;
             }
+        }
+
+        private static void OnBeforeAssemblyReload()
+        {
+            s_DomainReloading = true;
         }
 #endif
 
@@ -96,6 +103,13 @@ namespace Ayla
         {
             return Environment.CurrentManagedThreadId == s_MainThreadId;
         }
+
+#if UNITY_EDITOR
+        public static bool IsDomainReloading()
+        {
+            return s_DomainReloading;
+        }
+#endif
 
         private static void OnApplicationQuit()
         {
