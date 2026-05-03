@@ -3,6 +3,7 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Debug = UnityEngine.Debug;
 
@@ -38,7 +39,7 @@ namespace Ayla
 
         [Conditional("UNITY_ASSERTIONS")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void True(bool condition, string message)
+        public static void True([DoesNotReturnIf(false)] bool condition, string message)
         {
             if (!condition)
             {
@@ -48,7 +49,7 @@ namespace Ayla
 
         [Conditional("UNITY_ASSERTIONS")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void True(bool condition)
+        public static void True([DoesNotReturnIf(false)] bool condition)
         {
             if (!condition)
             {
@@ -58,7 +59,7 @@ namespace Ayla
 
         [Conditional("UNITY_ASSERTIONS")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void False(bool condition, string message)
+        public static void False([DoesNotReturnIf(true)] bool condition, string message)
         {
             if (condition)
             {
@@ -68,7 +69,7 @@ namespace Ayla
 
         [Conditional("UNITY_ASSERTIONS")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void False(bool condition)
+        public static void False([DoesNotReturnIf(true)] bool condition)
         {
             if (condition)
             {
