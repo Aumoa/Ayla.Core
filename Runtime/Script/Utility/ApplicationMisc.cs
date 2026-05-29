@@ -30,6 +30,7 @@ namespace Ayla
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             s_Language = Application.systemLanguage;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+            AssemblyReloadEvents.afterAssemblyReload += OnAfterAssemblyReload;
         }
 
         public static SystemLanguage EditorLanguage => s_Language;
@@ -46,6 +47,11 @@ namespace Ayla
         private static void OnBeforeAssemblyReload()
         {
             s_DomainReloading = true;
+        }
+
+        private static void OnAfterAssemblyReload()
+        {
+            Application.quitting += OnApplicationQuit;
         }
 #endif
 
