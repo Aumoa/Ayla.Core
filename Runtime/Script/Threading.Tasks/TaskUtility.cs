@@ -279,26 +279,13 @@ namespace Ayla
         /// completes or is canceled if the cancellation token is triggered.</returns>
         public static Task WaitAsync(this Task task, CancellationToken cancellationToken = default)
         {
-            if (!cancellationToken.CanBeCanceled)
+            ThrowHelper.ThrowIfArgumentIsNull(task, nameof(task));
+            if (!cancellationToken.CanBeCanceled || task.IsCompleted)
             {
                 return task;
             }
 
-            var tcs = new TaskCompletionSource<object?>(cancellationToken);
-            _ = task.ContinueWith(r =>
-            {
-                try
-                {
-                    r.GetAwaiter().GetResult();
-                    tcs.SetResult(null);
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                }
-            }, cancellationToken);
-
-            return tcs.Task;
+            return WaitAsyncCore(task, cancellationToken);
         }
 
         /// <summary>
@@ -315,26 +302,41 @@ namespace Ayla
         /// original task, or is canceled if the cancellation token is triggered before completion.</returns>
         public static Task<T> WaitAsync<T>(this Task<T> task, CancellationToken cancellationToken = default)
         {
-            if (!cancellationToken.CanBeCanceled)
+            ThrowHelper.ThrowIfArgumentIsNull(task, nameof(task));
+            if (!cancellationToken.CanBeCanceled || task.IsCompleted)
             {
                 return task;
             }
 
-            var tcs = new TaskCompletionSource<T>(cancellationToken);
-            _ = task.ContinueWith(r =>
-            {
-                try
-                {
-                    var result = r.GetAwaiter().GetResult();
-                    tcs.SetResult(result);
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                }
-            }, cancellationToken);
+            return WaitAsyncCore(task, cancellationToken);
+        }
 
-            return tcs.Task;
+        private static async Task WaitAsyncCore(Task task, CancellationToken cancellationToken)
+        {
+            var cancellationCompletion = new TaskCompletionSource<object?>();
+            using (cancellationToken.Register(state => ((TaskCompletionSource<object?>)state!).TrySetResult(null), cancellationCompletion))
+            {
+                if (task != await Task.WhenAny(task, cancellationCompletion.Task).ConfigureAwait(false))
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+
+            await task.ConfigureAwait(false);
+        }
+
+        private static async Task<T> WaitAsyncCore<T>(Task<T> task, CancellationToken cancellationToken)
+        {
+            var cancellationCompletion = new TaskCompletionSource<object?>();
+            using (cancellationToken.Register(state => ((TaskCompletionSource<object?>)state!).TrySetResult(null), cancellationCompletion))
+            {
+                if (task != await Task.WhenAny(task, cancellationCompletion.Task).ConfigureAwait(false))
+                {
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+
+            return await task.ConfigureAwait(false);
         }
 
         public static ValueTask Create(Func<ValueTask> func)
