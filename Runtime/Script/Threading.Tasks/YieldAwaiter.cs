@@ -3,7 +3,9 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 
 namespace Ayla
@@ -70,7 +72,7 @@ namespace Ayla
         /// Schedules the continuation to be invoked on the next player loop frame, without capturing the execution context.
         /// </summary>
         /// <remarks>In the Unity Editor outside of play mode, the continuation is scheduled via
-        /// <see cref="EditorApplication.delayCall"/> to run on the next editor frame.</remarks>
+        /// <c>EditorApplication.delayCall</c> to run on the next editor frame.</remarks>
         /// <param name="continuation">The action to execute on the next frame.</param>
         public void UnsafeOnCompleted(Action continuation)
         {

@@ -3,7 +3,9 @@
 using System;
 using System.Runtime.CompilerServices;
 using System.Threading;
+#if UNITY_EDITOR
 using UnityEditor;
+#endif
 using UnityEngine;
 
 namespace Ayla
