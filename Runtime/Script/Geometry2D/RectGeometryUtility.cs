@@ -95,7 +95,7 @@ namespace Ayla
         public static Rect FillRightBottom(this Rect source, float right, float bottom)
             => new(
                 source.xMax - right, source.yMax - bottom,
-                source.width, source.height
+                right, bottom
             );
 
         [MethodImpl(MethodImplOptions.AggressiveInlining), Pure]
