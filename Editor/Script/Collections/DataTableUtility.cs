@@ -9,9 +9,9 @@ namespace Ayla
     internal static class DataTableUtility
     {
         [OnOpenAsset]
-        public static bool OnOpenAsset(int instanceId, int line)
+        public static bool OnOpenAsset(EntityId entityId, int line)
         {
-            var obj = EditorUtility.EntityIdToObject(instanceId);
+            var obj = EditorUtility.EntityIdToObject(entityId);
             if (obj is DataTable)
             {
                 var serializedObject = new SerializedObject(obj);
